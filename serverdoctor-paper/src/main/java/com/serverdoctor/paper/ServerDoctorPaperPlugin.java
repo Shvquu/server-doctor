@@ -52,6 +52,16 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         api.events().subscribe(PerformanceThresholdReachedEvent.class, e ->
                 getLogger().warning("[Performance] " + e.reason()));
 
+        // Optionale PlaceholderAPI-Integration - nur wenn installiert.
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            try {
+                new com.serverdoctor.paper.placeholder.ServerDoctorExpansion(this, api).register();
+                getLogger().info("PlaceholderAPI-Integration aktiviert.");
+            } catch (Throwable t) {
+                getLogger().warning("PlaceholderAPI-Hook fehlgeschlagen: " + t.getMessage());
+            }
+        }
+
         long fiveMinutes = 20L * 60L * 5L;
         this.periodicTask = platform.scheduler().runRepeatingAsync(() -> {
             var report = api.runDiagnostics();

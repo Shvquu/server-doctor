@@ -1,7 +1,3 @@
-plugins {
-    alias(libs.plugins.shadow)
-}
-
 dependencies {
     implementation(project(":serverdoctor-core"))
     implementation(project(":serverdoctor-api"))
@@ -9,6 +5,7 @@ dependencies {
     implementation(project(":serverdoctor-storage"))
 
     compileOnly(libs.paper.api)
+    compileOnly(libs.placeholderapi)   // optional - nur zur Compile-Zeit
 }
 
 tasks {
@@ -18,15 +15,5 @@ tasks {
         filesMatching("plugin.yml") {
             expand(props)
         }
-    }
-
-    shadowJar {
-        archiveBaseName.set("serverdoctor")
-        archiveClassifier.set("")
-        // Bundelt common/api/core/storage + sqlite-jdbc in die finale Plugin-Jar.
-    }
-
-    build {
-        dependsOn(shadowJar)
     }
 }

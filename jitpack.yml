@@ -1,0 +1,4 @@
+jdk:
+  - openjdk21
+install:
+  - ./gradlew :serverdoctor-common:publishToMavenLocal :serverdoctor-api:publishToMavenLocal -x test
