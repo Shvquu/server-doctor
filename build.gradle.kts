@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = "com.serverdoctor"
-    version = "1.0.0"
+    version = "0.6.0"
 }
 
 subprojects {
@@ -13,6 +13,7 @@ subprojects {
     repositories {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
+        maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
     }
 
     extensions.configure<JavaPluginExtension> {
