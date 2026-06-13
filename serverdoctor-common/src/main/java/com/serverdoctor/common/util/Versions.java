@@ -23,6 +23,7 @@ public final class Versions {
         return 0;
     }
 
+    public static boolean isNewer(String a, String b) { return compare(a, b) > 0; }
     public static boolean isOlder(String a, String b) { return compare(a, b) < 0; }
 
     private static int[] parse(String v) {
