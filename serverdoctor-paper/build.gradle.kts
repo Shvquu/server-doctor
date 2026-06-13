@@ -21,7 +21,7 @@ tasks {
     }
 
     shadowJar {
-        archiveBaseName.set("ServerDoctor")
+        archiveBaseName.set("serverdoctor")
         archiveClassifier.set("")
         // Bundelt common/api/core/storage + sqlite-jdbc in die finale Plugin-Jar.
     }
