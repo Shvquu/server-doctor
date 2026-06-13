@@ -6,6 +6,8 @@ import com.serverdoctor.api.event.AnalysisFinishedEvent;
 import com.serverdoctor.api.event.PerformanceThresholdReachedEvent;
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.core.engine.ServerDoctorCore;
+import com.serverdoctor.core.update.UpdateChecker;
+import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.paper.command.ServerDoctorCommand;
 import com.serverdoctor.paper.platform.PaperServerPlatform;
 import com.serverdoctor.platform.SchedulerAdapter;
@@ -60,6 +62,33 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         }, 20L * 30L, fiveMinutes);
 
         getLogger().info("ServerDoctor aktiviert auf " + platform.serverInfo().version());
+
+        checkForUpdates(platform);
+    }
+
+    private void checkForUpdates(PaperServerPlatform platform) {
+        UpdateChecker updateChecker = new UpdateChecker("Shvquu/server-doctor", getDescription().getVersion());
+
+        platform.scheduler().runAsync(() -> {
+            UpdateResult result = updateChecker.check();
+
+            switch (result.status()) {
+                case UPDATE_AVAILABLE -> {
+                    getLogger().warning("============================================================");
+                    getLogger().warning(" Ein Update ist verfügbar: "
+                            + result.currentVersion() + " -> " + result.latestVersion());
+                    getLogger().warning(" Download: " + result.releaseUrl());
+                    getLogger().warning("============================================================");
+                    platform.scheduler().runGlobal(() -> {
+                        getLogger().warning("ServerDoctor wird deaktiviert, bis das Update eingespielt ist.");
+                        getServer().getPluginManager().disablePlugin(this);
+                    });
+                }
+                case UP_TO_DATE   -> getLogger().info("ServerDoctor ist aktuell (" + result.currentVersion() + ").");
+                case NO_RELEASES  -> getLogger().info("Update-Prüfung: keine Releases gefunden.");
+                case ERROR        -> getLogger().warning("Update-Prüfung fehlgeschlagen: " + result.detail());
+            }
+        });
     }
 
     private StorageProvider openStorage() {
