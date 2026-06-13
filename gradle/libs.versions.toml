@@ -1,10 +1,12 @@
 [versions]
-paper  = "1.21.4-R0.1-SNAPSHOT"
-junit  = "5.11.3"
+paper   = "1.21.4-R0.1-SNAPSHOT"
+junit   = "5.11.3"
+sqlite  = "3.46.1.3"
 
 [libraries]
-paper-api  = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
-junit-bom  = { module = "org.junit:junit-bom", version.ref = "junit" }
+paper-api    = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
+sqlite-jdbc  = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+junit-bom    = { module = "org.junit:junit-bom", version.ref = "junit" }
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version = "8.3.5" }
