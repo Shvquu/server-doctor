@@ -14,7 +14,8 @@ und In-Game-Command.
 | `serverdoctor-common` | Domain-Modelle, Util | ✅ kompiliert (verifiziert) |
 | `serverdoctor-api` | Public Contract, Events, Module-SPI | ✅ kompiliert (verifiziert) |
 | `serverdoctor-core` | Engine, 5 Scanner, Recommendation, ConflictDB | ✅ kompiliert (verifiziert) |
-| `serverdoctor-paper` | Bukkit/Paper-Adapter, Plugin-Main, Command | ⚙️ baubar (Paper-API nötig) |
+| `serverdoctor-storage` | StorageProvider, 5 Repositories, SQLite + In-Memory | ✅ verifiziert (Memory live, SQLite-Schema gegen echte Engine) |
+| `serverdoctor-paper` | Bukkit/Paper-Adapter, Plugin-Main, Command, Storage-Wiring | ⚙️ baubar (Paper-API nötig) |
 
 Enthaltene Scanner: **Plugin**, **Dependency**, **Conflict**, **Performance**, **Security**.
 
@@ -38,6 +39,7 @@ Ergebnis: `serverdoctor-paper/build/libs/ServerDoctor-0.1.0-SNAPSHOT.jar`
 /serverdoctor conflicts       # erkannte Plugin-Konflikte
 /serverdoctor security        # Sicherheits-/Wartungsrisiken
 /serverdoctor recs            # generierte Empfehlungen
+/serverdoctor history         # gespeicherte Performance-Historie
 ```
 Alias: `/sd`, `/doctor` · Permission: `serverdoctor.admin` (default: op).
 Zusätzlich läuft alle 5 Minuten ein asynchroner Hintergrund-Scan.
@@ -71,7 +73,7 @@ api.registerModule(new AnalysisModule() {
 ## Bewusst noch NICHT enthalten (nächste Iterationen)
 
 - Module `folia`, `velocity`, `bungeecord` (Plattform-Adapter)
-- `serverdoctor-storage` mit SQLite/PostgreSQL/MariaDB
+- `serverdoctor-storage`: PostgreSQL- und MariaDB-Backend (SQLite + In-Memory sind fertig)
 - `serverdoctor-rest-api` (HTTP/JSON) und `serverdoctor-webhook` (Discord/Slack/Teams)
 - Update-Checker (Modrinth/Hangar/SpigotMC/GitHub), PlaceholderAPI-Bridge
 - `serverdoctor-example-plugin`, `serverdoctor-testing` (JUnit/ArchUnit-Suite)
