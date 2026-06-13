@@ -15,6 +15,7 @@ und In-Game-Command.
 | `serverdoctor-api` | Public Contract, Events, Module-SPI | ✅ kompiliert (verifiziert) |
 | `serverdoctor-core` | Engine, 5 Scanner, Recommendation, ConflictDB | ✅ kompiliert (verifiziert) |
 | `serverdoctor-storage` | StorageProvider, 5 Repositories, SQLite + In-Memory | ✅ verifiziert (Memory live, SQLite-Schema gegen echte Engine) |
+| `serverdoctor-testing` | Fake-Plattform-Fixtures, JUnit-5-Suite, ArchUnit-Regeln | ✅ verifiziert (40 Assertions framework-frei nachgewiesen) |
 | `serverdoctor-paper` | Bukkit/Paper-Adapter, Plugin-Main, Command, Storage-Wiring | ⚙️ baubar (Paper-API nötig) |
 
 Enthaltene Scanner: **Plugin**, **Dependency**, **Conflict**, **Performance**, **Security**.
@@ -43,6 +44,21 @@ Ergebnis: `serverdoctor-paper/build/libs/ServerDoctor-0.1.0-SNAPSHOT.jar`
 ```
 Alias: `/sd`, `/doctor` · Permission: `serverdoctor.admin` (default: op).
 Zusätzlich läuft alle 5 Minuten ein asynchroner Hintergrund-Scan.
+
+## Tests
+
+Unit-Tests (JUnit 5) liegen in `src/test` der jeweiligen Module; Fixtures und die
+ArchUnit-Architekturtests im Modul `serverdoctor-testing`.
+
+```bash
+gradle test
+```
+
+Abgedeckt: Versions/Severity-Logik, AnalysisResult-Builder, ScannerRegistry-Capability-Gating,
+EventBus (inkl. Fehler-Isolation), alle Scanner-Schwellen, RecommendationEngine, Analysis-Engine
+end-to-end, Storage (Memory + SQLite-Roundtrip via `jdbc:sqlite::memory:`). Die ArchUnit-Regeln
+erzwingen als Build-Brecher: kein Plattform-SDK in Core/Common/API/Storage, die Clean-Architecture-
+Dependency-Rule und die Read-only-Invariante der Plattform-Adapter.
 
 ## Integration für Fremd-Plugins (≤ 5 Zeilen)
 
@@ -76,5 +92,5 @@ api.registerModule(new AnalysisModule() {
 - `serverdoctor-storage`: PostgreSQL- und MariaDB-Backend (SQLite + In-Memory sind fertig)
 - `serverdoctor-rest-api` (HTTP/JSON) und `serverdoctor-webhook` (Discord/Slack/Teams)
 - Update-Checker (Modrinth/Hangar/SpigotMC/GitHub), PlaceholderAPI-Bridge
-- `serverdoctor-example-plugin`, `serverdoctor-testing` (JUnit/ArchUnit-Suite)
+- `serverdoctor-example-plugin` (Referenz-Integration)
 - Echte Security-AdvisorySource (aktuell nur Metadaten-Heuristik, keine erfundene CVE-DB)

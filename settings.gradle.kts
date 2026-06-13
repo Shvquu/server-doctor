@@ -6,6 +6,7 @@ include(
     "serverdoctor-storage",
     "serverdoctor-core",
     "serverdoctor-paper",
+    "serverdoctor-testing",
 )
 
 dependencyResolutionManagement {
