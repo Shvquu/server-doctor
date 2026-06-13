@@ -2,7 +2,7 @@ name: ServerDoctor
 version: '${version}'
 main: com.serverdoctor.paper.ServerDoctorPaperPlugin
 api-version: '1.21'
-author: ['LittleSophyy', 'zNixFNA']
+author: ['LittleSophyy', "zNixFNA"]
 description: Read-only Analyse-, Diagnose- und Monitoring-Plattform für Minecraft-Server.
 website: https://github.com/shvquu/server-doctor
 folia-supported: false

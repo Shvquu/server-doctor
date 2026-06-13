@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = "com.serverdoctor"
-    version = "0.1.0-SNAPSHOT"
+    version = "1.0.0"
 }
 
 subprojects {
