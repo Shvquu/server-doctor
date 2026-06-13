@@ -3,6 +3,7 @@ rootProject.name = "serverdoctor"
 include(
     "serverdoctor-common",
     "serverdoctor-api",
+    "serverdoctor-storage",
     "serverdoctor-core",
     "serverdoctor-paper",
 )

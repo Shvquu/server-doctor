@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":serverdoctor-core"))
     implementation(project(":serverdoctor-api"))
     implementation(project(":serverdoctor-common"))
+    implementation(project(":serverdoctor-storage"))
 
     compileOnly(libs.paper.api)
 }
@@ -22,7 +23,7 @@ tasks {
     shadowJar {
         archiveBaseName.set("ServerDoctor")
         archiveClassifier.set("")
-        // Bundelt common/api/core in die finale Plugin-Jar.
+        // Bundelt common/api/core/storage + sqlite-jdbc in die finale Plugin-Jar.
     }
 
     build {
