@@ -1,0 +1,20 @@
+name: ServerDoctor
+version: '${version}'
+main: com.serverdoctor.paper.ServerDoctorPaperPlugin
+api-version: '1.20'
+author: VoidFrame
+description: Read-only Analyse-, Diagnose- und Monitoring-Plattform für Minecraft-Server.
+website: https://example.com
+folia-supported: false
+
+commands:
+  serverdoctor:
+    description: ServerDoctor Diagnose-Befehle
+    usage: /serverdoctor <scan|report|tps|conflicts|security|recs>
+    aliases: [sd, doctor]
+    permission: serverdoctor.admin
+
+permissions:
+  serverdoctor.admin:
+    description: Zugriff auf ServerDoctor-Diagnosebefehle
+    default: op
