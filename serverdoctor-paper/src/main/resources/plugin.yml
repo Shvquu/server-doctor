@@ -1,10 +1,10 @@
 name: ServerDoctor
 version: '${version}'
 main: com.serverdoctor.paper.ServerDoctorPaperPlugin
-api-version: '1.21'
-author: ['LittleSophyy', "zNixFNA"]
+api-version: '1.20'
+author: VoidFrame
 description: Read-only Analyse-, Diagnose- und Monitoring-Plattform für Minecraft-Server.
-website: https://github.com/shvquu/server-doctor
+website: https://example.com
 folia-supported: false
 
 commands:

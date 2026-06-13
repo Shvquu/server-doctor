@@ -89,6 +89,7 @@ api.registerModule(new AnalysisModule() {
 ## Bewusst noch NICHT enthalten (nächste Iterationen)
 
 - Module `folia`, `velocity`, `bungeecord` (Plattform-Adapter)
+- `serverdoctor-storage`: PostgreSQL- und MariaDB-Backend (SQLite + In-Memory sind fertig)
 - `serverdoctor-rest-api` (HTTP/JSON) und `serverdoctor-webhook` (Discord/Slack/Teams)
 - Update-Checker (Modrinth/Hangar/SpigotMC/GitHub), PlaceholderAPI-Bridge
 - `serverdoctor-example-plugin` (Referenz-Integration)
