@@ -12,10 +12,13 @@ import com.serverdoctor.platform.ServerPlatform;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.EnumSet;
 import java.util.Set;
 
-/** Paper-Implementierung der Plattform-Fassade. */
+/** Bukkit-Implementierung der Plattform-Fassade - unterstützt Paper und Folia. */
 public final class PaperServerPlatform implements ServerPlatform {
+
+    private final boolean folia = detectFolia();
 
     private final PluginAdapter pluginAdapter = new PaperPluginAdapter();
     private final PlayerAdapter playerAdapter = new PaperPlayerAdapter();
@@ -25,22 +28,36 @@ public final class PaperServerPlatform implements ServerPlatform {
     private final CommandAdapter commandAdapter;
 
     public PaperServerPlatform(JavaPlugin plugin) {
-        this.schedulerAdapter = new BukkitSchedulerAdapter(plugin);
+        this.schedulerAdapter = folia
+                ? new FoliaSchedulerAdapter(plugin)
+                : new BukkitSchedulerAdapter(plugin);
         this.loggerAdapter = new PaperLoggerAdapter(plugin.getLogger());
         this.commandAdapter = new PaperCommandAdapter(plugin);
     }
 
-    @Override public String name() { return "Paper"; }
+    private static boolean detectFolia() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    @Override public String name() { return folia ? "Folia" : "Paper"; }
 
     @Override
     public ServerInfo serverInfo() {
-        return new ServerInfo(Bukkit.getName(), Bukkit.getVersion(),
+        return new ServerInfo(name(), Bukkit.getVersion(),
                 System.getProperty("java.version", "unknown"));
     }
 
     @Override
     public Set<Capability> capabilities() {
-        return Set.of(Capability.HAS_PLUGINS, Capability.HAS_TICK_LOOP, Capability.HAS_ENTITIES);
+        EnumSet<Capability> caps = EnumSet.of(
+                Capability.HAS_PLUGINS, Capability.HAS_TICK_LOOP, Capability.HAS_ENTITIES);
+        if (folia) caps.add(Capability.HAS_REGIONS);
+        return caps;
     }
 
     @Override public PluginAdapter plugins() { return pluginAdapter; }

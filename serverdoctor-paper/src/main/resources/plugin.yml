@@ -8,7 +8,9 @@ authors:
   - DeltaNimrod
 description: Read-only Analyse-, Diagnose- und Monitoring-Plattform für Minecraft-Server.
 website: https://github.com/shvquu/server-doctor
-folia-supported: false
+folia-supported: true
+softdepend:
+  - PlaceholderAPI
 
 commands:
   serverdoctor:
