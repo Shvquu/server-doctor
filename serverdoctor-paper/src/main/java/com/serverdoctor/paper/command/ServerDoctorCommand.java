@@ -23,8 +23,12 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
 
     private static final String PREFIX = "§8[§bServerDoctor§8] §r";
     private final ServerDoctorApi api;
+    private final com.serverdoctor.storage.StorageProvider storage;
 
-    public ServerDoctorCommand(ServerDoctorApi api) { this.api = api; }
+    public ServerDoctorCommand(ServerDoctorApi api, com.serverdoctor.storage.StorageProvider storage) {
+        this.api = api;
+        this.storage = storage;
+    }
 
     @Override
     public boolean onCommand(CommandSender s, Command cmd, String label, String[] args) {
@@ -37,6 +41,8 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
             case "security"        -> security(s);
             case "recommendations",
                  "recs"            -> recommendations(s);
+            case "history",
+                 "hist"            -> history(s);
             default                -> help(s);
         }
         return true;
@@ -101,6 +107,20 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
                 + " §8- §7" + x.description()));
     }
 
+    private void history(CommandSender s) {
+        var snapshots = storage.performance().recent(10);
+        if (snapshots.isEmpty()) {
+            s.sendMessage(PREFIX + "§7Noch keine Historie gespeichert.");
+            return;
+        }
+        s.sendMessage(PREFIX + "§lPerformance-Historie §7(neueste zuerst)");
+        for (PerformanceSnapshot p : snapshots) {
+            String tps = Double.isNaN(p.tps1m()) ? "n/a" : String.format(Locale.ROOT, "%.1f", p.tps1m());
+            s.sendMessage("§8» §7" + p.capturedAt() + " §8| §fTPS " + tps
+                    + " §8| §fRAM " + p.memory().usedMb() + "MB §8| §fSpieler " + p.onlinePlayers());
+        }
+    }
+
     private void help(CommandSender s) {
         s.sendMessage(PREFIX + "§lBefehle");
         s.sendMessage("§8» §f/serverdoctor scan §7- vollständige Analyse");
@@ -109,6 +129,7 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
         s.sendMessage("§8» §f/serverdoctor conflicts §7- Konflikte");
         s.sendMessage("§8» §f/serverdoctor security §7- Sicherheits-/Wartungsrisiken");
         s.sendMessage("§8» §f/serverdoctor recs §7- Empfehlungen");
+        s.sendMessage("§8» §f/serverdoctor history §7- gespeicherte Performance-Historie");
     }
 
     private String color(Severity sev) { return sev(sev) + " §7" + sev.name(); }
@@ -127,7 +148,7 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
     public List<String> onTabComplete(CommandSender s, Command cmd, String label, String[] args) {
         if (args.length == 1) {
             List<String> opts = new ArrayList<>();
-            Stream.of("scan", "report", "tps", "conflicts", "security", "recs")
+            Stream.of("scan", "report", "tps", "conflicts", "security", "recs", "history")
                     .filter(o -> o.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .forEach(opts::add);
             return opts;
