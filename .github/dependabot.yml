@@ -1,0 +1,32 @@
+version: 2
+
+updates:
+  # Gradle Dependencies
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Berlin"
+
+    open-pull-requests-limit: 10
+
+    commit-message:
+      prefix: "deps"
+
+    labels:
+      - "dependencies"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:15"
+      timezone: "Europe/Berlin"
+
+    labels:
+      - "dependencies"
+      - "github-actions"
