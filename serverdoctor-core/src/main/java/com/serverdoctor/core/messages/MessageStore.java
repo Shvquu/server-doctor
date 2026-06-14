@@ -29,6 +29,9 @@ public class MessageStore {
     public void applyOverrides(InputStream in) { parseInto(read(in), overrides); }
     public void applyOverrides(String text) { parseInto(text, overrides); }
 
+    /** Verwirft die geladenen Overrides (für /serverdoctor reload). Defaults bleiben erhalten. */
+    public void clearOverrides() { overrides.clear(); }
+
     /** Rohtext (mit &-Codes und {Platzhaltern}); override > default > Schlüssel. */
     public String raw(String key) {
         String v = overrides.get(key);

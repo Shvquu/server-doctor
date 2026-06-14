@@ -49,7 +49,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             }
         });
 
-        ServerDoctorCommand command = new ServerDoctorCommand(api, storage, messageStore);
+        ServerDoctorCommand command = new ServerDoctorCommand(api, storage, messageStore, this::reloadMessages);
         var pluginCommand = getCommand("serverdoctor");
         if (pluginCommand != null) {
             pluginCommand.setExecutor(command);
@@ -89,15 +89,25 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             store.loadDefaults(in);
         } catch (Exception ignored) { }
 
-        if (!new File(getDataFolder(), "message.yml").exists()) {
-            saveResource("message.yml", false);
+        if (!new File(getDataFolder(), "messages.yml").exists()) {
+            saveResource("messages.yml", false);
         }
-        File file = new File(getDataFolder(), "message.yml");
+        File file = new File(getDataFolder(), "messages.yml");
         if (file.exists()) {
             try { store.applyOverrides(Files.readString(file.toPath(), StandardCharsets.UTF_8)); }
             catch (Exception ex) { getLogger().warning("messages.yml nicht lesbar: " + ex.getMessage()); }
         }
         return store;
+    }
+
+    /** Lädt messages.yml neu (für /serverdoctor reload). */
+    public void reloadMessages() {
+        messageStore.clearOverrides();
+        File file = new File(getDataFolder(), "messages.yml");
+        if (file.exists()) {
+            try { messageStore.applyOverrides(Files.readString(file.toPath(), StandardCharsets.UTF_8)); }
+            catch (Exception ex) { getLogger().warning("messages.yml nicht lesbar: " + ex.getMessage()); }
+        }
     }
 
     private void checkForUpdates(PaperServerPlatform platform) {

@@ -15,10 +15,12 @@ public final class ServerDoctorVelocityCommand implements SimpleCommand {
 
     private final ServerDoctorApi api;
     private final MessageStore msg;
+    private final Runnable reloadHandler;
 
-    public ServerDoctorVelocityCommand(ServerDoctorApi api, MessageStore msg) {
+    public ServerDoctorVelocityCommand(ServerDoctorApi api, MessageStore msg, Runnable reloadHandler) {
         this.api = api;
         this.msg = msg;
+        this.reloadHandler = reloadHandler;
     }
 
     @Override
@@ -67,6 +69,10 @@ public final class ServerDoctorVelocityCommand implements SimpleCommand {
                 if (recs.isEmpty()) { send(src, msg.raw("command.recommendations.none")); return; }
                 recs.forEach(x -> send(src, msg.get("command.recommendations.line",
                         "title", x.title(), "description", x.description())));
+            }
+            case "reload" -> {
+                reloadHandler.run();
+                send(src, msg.raw("command.reload.success"));
             }
             default -> {
                 send(src, msg.raw("command.help.header"));

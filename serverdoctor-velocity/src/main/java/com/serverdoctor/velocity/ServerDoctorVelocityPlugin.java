@@ -72,7 +72,7 @@ public final class ServerDoctorVelocityPlugin {
 
         proxy.getCommandManager().register(
                 proxy.getCommandManager().metaBuilder("serverdoctor").aliases("sd").build(),
-                new ServerDoctorVelocityCommand(api, messages));
+                new ServerDoctorVelocityCommand(api, messages, this::reloadMessages));
 
         platform.scheduler().runRepeatingAsync(api::runDiagnostics, 20L * 30L, 20L * 60L * 5L);
 
@@ -109,6 +109,16 @@ public final class ServerDoctorVelocityPlugin {
             logger.warn("messages.yml nicht ladbar: {}", ex.getMessage());
         }
         return store;
+    }
+
+    /** Lädt messages.yml neu (für /serverdoctor reload). */
+    public void reloadMessages() {
+        messages.clearOverrides();
+        Path file = dataDirectory.resolve("messages.yml");
+        if (Files.exists(file)) {
+            try { messages.applyOverrides(Files.readString(file, StandardCharsets.UTF_8)); }
+            catch (Exception ex) { logger.warn("messages.yml nicht lesbar: {}", ex.getMessage()); }
+        }
     }
 
 

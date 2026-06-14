@@ -15,6 +15,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,15 +28,17 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
     private final ServerDoctorApi api;
     private final StorageProvider storage;
     private final MessageStore msg;
+    private final Runnable reloadHandler;
 
-    public ServerDoctorCommand(ServerDoctorApi api, StorageProvider storage, MessageStore msg) {
+    public ServerDoctorCommand(ServerDoctorApi api, StorageProvider storage, MessageStore msg, Runnable reloadHandler) {
         this.api = api;
         this.storage = storage;
         this.msg = msg;
+        this.reloadHandler = reloadHandler;
     }
 
     @Override
-    public boolean onCommand(CommandSender s, Command cmd, String label, String[] args) {
+    public boolean onCommand(@NonNull CommandSender s, @NonNull Command cmd, @NonNull String label, String[] args) {
         String sub = args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
             case "scan"            -> scan(s);
@@ -47,6 +50,7 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
                  "recs"            -> recommendations(s);
             case "history",
                  "hist"            -> history(s);
+            case "reload"          -> reload(s);
             default                -> help(s);
         }
         return true;
@@ -118,6 +122,11 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
         }
     }
 
+    private void reload(CommandSender s) {
+        reloadHandler.run();
+        sendKey(s, true, "command.reload.success");
+    }
+
     private void help(CommandSender s) {
         sendKey(s, false, "command.help.header");
         for (String k : List.of("scan", "report", "tps", "conflicts", "security", "recs", "history")) {
@@ -151,10 +160,10 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender s, Command cmd, String label, String[] args) {
+    public List<String> onTabComplete(@NonNull CommandSender s, @NonNull Command cmd, @NonNull String label, String[] args) {
         if (args.length == 1) {
             List<String> opts = new ArrayList<>();
-            Stream.of("scan", "report", "tps", "conflicts", "security", "recs", "history")
+            Stream.of("scan", "report", "tps", "conflicts", "security", "recs", "history", "reload")
                     .filter(o -> o.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .forEach(opts::add);
             return opts;
