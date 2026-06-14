@@ -49,7 +49,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             }
         });
 
-        ServerDoctorCommand command = new ServerDoctorCommand(api, storage);
+        ServerDoctorCommand command = new ServerDoctorCommand(api, storage, messageStore);
         var pluginCommand = getCommand("serverdoctor");
         if (pluginCommand != null) {
             pluginCommand.setExecutor(command);
