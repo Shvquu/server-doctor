@@ -5,6 +5,7 @@ import com.serverdoctor.api.ServerDoctorApi;
 import com.serverdoctor.api.ServerDoctorProvider;
 import com.serverdoctor.api.event.AnalysisFinishedEvent;
 import com.serverdoctor.core.engine.ServerDoctorCore;
+import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.platform.SchedulerAdapter;
@@ -20,6 +21,8 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import org.slf4j.Logger;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -39,6 +42,7 @@ public final class ServerDoctorVelocityPlugin {
 
     private ServerDoctorCore core;
     private StorageProvider storage;
+    private MessageStore messages;
     private SchedulerAdapter.Cancellable periodicTask;
 
     @Inject
@@ -55,7 +59,9 @@ public final class ServerDoctorVelocityPlugin {
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
 
+        this.messages = loadMessages();
         this.storage = openStorage();
+
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
             try {
                 storage.saveReport(e.report());
@@ -66,7 +72,7 @@ public final class ServerDoctorVelocityPlugin {
 
         proxy.getCommandManager().register(
                 proxy.getCommandManager().metaBuilder("serverdoctor").aliases("sd").build(),
-                new ServerDoctorVelocityCommand(api));
+                new ServerDoctorVelocityCommand(api, messages));
 
         platform.scheduler().runRepeatingAsync(api::runDiagnostics, 20L * 30L, 20L * 60L * 5L);
 
@@ -82,6 +88,29 @@ public final class ServerDoctorVelocityPlugin {
         }
         ServerDoctorProvider.unregister();
     }
+
+    private MessageStore loadMessages() {
+        MessageStore store = new MessageStore();
+        try (InputStream in = getClass().getResourceAsStream("/messages.yml")) {
+            store.loadDefaults(in);
+        } catch (Exception ignored) { }
+        try {
+            Files.createDirectories(dataDirectory);
+            Path file = dataDirectory.resolve("messages.yml");
+            if (!Files.exists(file)) {
+                try (InputStream in = getClass().getResourceAsStream("/messages.yml")) {
+                    if (in != null) Files.copy(in, file);
+                }
+            }
+            if (Files.exists(file)) {
+                store.applyOverrides(Files.readString(file, StandardCharsets.UTF_8));
+            }
+        } catch (Exception ex) {
+            logger.warn("messages.yml nicht ladbar: {}", ex.getMessage());
+        }
+        return store;
+    }
+
 
     private void checkForUpdate(VelocityServerPlatform platform) {
         UpdateChecker updateChecker = new UpdateChecker("Shvquu/server-doctor", currentVersion());

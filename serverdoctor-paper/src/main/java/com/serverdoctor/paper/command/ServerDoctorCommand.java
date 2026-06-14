@@ -8,6 +8,9 @@ import com.serverdoctor.common.model.PerformanceSnapshot;
 import com.serverdoctor.common.model.Recommendation;
 import com.serverdoctor.common.model.SecurityRisk;
 import com.serverdoctor.common.model.Severity;
+import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.storage.StorageProvider;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -18,16 +21,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
 
-/** /serverdoctor - read-only Diagnose-Ausgabe im Chat/Konsole. */
+/** /serverdoctor - read-only Diagnose-Ausgabe; alle Texte aus messages.yml. */
 public final class ServerDoctorCommand implements CommandExecutor, TabCompleter {
 
-    private static final String PREFIX = "§8[§bServerDoctor§8] §r";
     private final ServerDoctorApi api;
-    private final com.serverdoctor.storage.StorageProvider storage;
+    private final StorageProvider storage;
+    private final MessageStore msg;
 
-    public ServerDoctorCommand(ServerDoctorApi api, com.serverdoctor.storage.StorageProvider storage) {
+    public ServerDoctorCommand(ServerDoctorApi api, StorageProvider storage, MessageStore msg) {
         this.api = api;
         this.storage = storage;
+        this.msg = msg;
     }
 
     @Override
@@ -49,99 +53,101 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
     }
 
     private void scan(CommandSender s) {
-        s.sendMessage(PREFIX + "§7Analyse läuft …");
-        DiagnosticReport report = api.runDiagnostics();
-        s.sendMessage(PREFIX + "Fertig. Gesamtstatus: " + color(report.overallSeverity()));
-        s.sendMessage(PREFIX + "§7Konflikte: §f" + report.conflicts().size()
-                + " §7· Risiken: §f" + report.securityRisks().size()
-                + " §7· Empfehlungen: §f" + report.recommendations().size());
-        s.sendMessage(PREFIX + "§7Details: §f/serverdoctor report");
+        sendKey(s, true, "command.scan.running");
+        DiagnosticReport r = api.runDiagnostics();
+        send(s, true, msg.get("command.scan.summary",
+                "status", status(r.overallSeverity()),
+                "conflicts", r.conflicts().size(),
+                "risks", r.securityRisks().size(),
+                "recommendations", r.recommendations().size()));
+        sendKey(s, true, "command.scan.details");
     }
 
     private void report(CommandSender s) {
         var opt = api.getLatestReport();
-        if (opt.isEmpty()) { s.sendMessage(PREFIX + "§7Noch kein Report. Erst §f/serverdoctor scan§7."); return; }
+        if (opt.isEmpty()) { sendKey(s, true, "command.report.none"); return; }
         DiagnosticReport r = opt.get();
-        s.sendMessage(PREFIX + "§lDiagnose-Report");
-        s.sendMessage("§8» §7Status: " + color(r.overallSeverity()));
-        printPerformance(s, r.performance());
+        sendKey(s, false, "command.report.header");
+        send(s, false, msg.get("command.report.status", "status", status(r.overallSeverity())));
         for (var result : r.results()) {
             for (Finding f : result.findings()) {
-                s.sendMessage("§8» " + sev(f.severity()) + " §7" + f.message());
+                send(s, false, "&8» " + sev(f.severity()) + " &7" + f.message());
             }
         }
-        s.sendMessage("§8» §7Empfehlungen: §f" + r.recommendations().size()
-                + " §7(§f/serverdoctor recs§7)");
+        send(s, false, msg.get("command.report.recommendations", "count", r.recommendations().size()));
     }
 
-    private void tps(CommandSender s) {
-        printPerformance(s, api.getPerformanceSnapshot());
-    }
+    private void tps(CommandSender s) { printPerformance(s, api.getPerformanceSnapshot()); }
 
     private void printPerformance(CommandSender s, PerformanceSnapshot p) {
-        String tps = Double.isNaN(p.tps1m()) ? "n/a" : String.format(Locale.ROOT, "%.1f", p.tps1m());
-        String mspt = Double.isNaN(p.mspt()) ? "n/a" : String.format(Locale.ROOT, "%.1fms", p.mspt());
-        s.sendMessage("§8» §7TPS: §f" + tps + " §7· MSPT: §f" + mspt
-                + " §7· RAM: §f" + p.memory().usedMb() + "/" + p.memory().maxMb() + "MB"
-                + " §7· Spieler: §f" + p.onlinePlayers());
+        send(s, false, msg.get("command.performance.line",
+                "tps", num(p.tps1m()), "mspt", num(p.mspt()),
+                "ram_used", p.memory().usedMb(), "ram_max", p.memory().maxMb(),
+                "players", p.onlinePlayers()));
     }
 
     private void conflicts(CommandSender s) {
         List<ConflictReport> c = api.getConflicts();
-        if (c.isEmpty()) { s.sendMessage(PREFIX + "§aKeine bekannten Konflikte."); return; }
-        c.forEach(x -> s.sendMessage("§8» " + sev(x.severity()) + " §f" + x.pluginA()
-                + " §7+ §f" + x.pluginB() + " §8- §7" + x.description()));
+        if (c.isEmpty()) { sendKey(s, true, "command.conflicts.none"); return; }
+        c.forEach(x -> send(s, false, "&8» " + sev(x.severity()) + " "
+                + msg.get("command.conflicts.line", "a", x.pluginA(), "b", x.pluginB(), "description", x.description())));
     }
 
     private void security(CommandSender s) {
         List<SecurityRisk> risks = api.getSecurityRisks();
-        if (risks.isEmpty()) { s.sendMessage(PREFIX + "§aKeine Risiken gemeldet."); return; }
-        risks.forEach(x -> s.sendMessage("§8» " + sev(x.severity()) + " §f" + x.pluginName()
-                + " §8- §7" + x.description()));
+        if (risks.isEmpty()) { sendKey(s, true, "command.security.none"); return; }
+        risks.forEach(x -> send(s, false, "&8» " + sev(x.severity()) + " "
+                + msg.get("command.security.line", "plugin", x.pluginName(), "description", x.description())));
     }
 
     private void recommendations(CommandSender s) {
         List<Recommendation> recs = api.getRecommendations();
-        if (recs.isEmpty()) { s.sendMessage(PREFIX + "§aKeine Empfehlungen."); return; }
-        recs.forEach(x -> s.sendMessage("§8» " + sev(x.severity()) + " §f" + x.title()
-                + " §8- §7" + x.description()));
+        if (recs.isEmpty()) { sendKey(s, true, "command.recommendations.none"); return; }
+        recs.forEach(x -> send(s, false, "&8» " + sev(x.severity()) + " "
+                + msg.get("command.recommendations.line", "title", x.title(), "description", x.description())));
     }
 
     private void history(CommandSender s) {
         var snapshots = storage.performance().recent(10);
-        if (snapshots.isEmpty()) {
-            s.sendMessage(PREFIX + "§7Noch keine Historie gespeichert.");
-            return;
-        }
-        s.sendMessage(PREFIX + "§lPerformance-Historie §7(neueste zuerst)");
+        if (snapshots.isEmpty()) { sendKey(s, true, "command.history.none"); return; }
+        sendKey(s, false, "command.history.header");
         for (PerformanceSnapshot p : snapshots) {
-            String tps = Double.isNaN(p.tps1m()) ? "n/a" : String.format(Locale.ROOT, "%.1f", p.tps1m());
-            s.sendMessage("§8» §7" + p.capturedAt() + " §8| §fTPS " + tps
-                    + " §8| §fRAM " + p.memory().usedMb() + "MB §8| §fSpieler " + p.onlinePlayers());
+            send(s, false, msg.get("command.history.line",
+                    "time", p.capturedAt(), "tps", num(p.tps1m()),
+                    "ram", p.memory().usedMb(), "players", p.onlinePlayers()));
         }
     }
 
     private void help(CommandSender s) {
-        s.sendMessage(PREFIX + "§lBefehle");
-        s.sendMessage("§8» §f/serverdoctor scan §7- vollständige Analyse");
-        s.sendMessage("§8» §f/serverdoctor report §7- letzten Report anzeigen");
-        s.sendMessage("§8» §f/serverdoctor tps §7- Live-Performance");
-        s.sendMessage("§8» §f/serverdoctor conflicts §7- Konflikte");
-        s.sendMessage("§8» §f/serverdoctor security §7- Sicherheits-/Wartungsrisiken");
-        s.sendMessage("§8» §f/serverdoctor recs §7- Empfehlungen");
-        s.sendMessage("§8» §f/serverdoctor history §7- gespeicherte Performance-Historie");
+        sendKey(s, false, "command.help.header");
+        for (String k : List.of("scan", "report", "tps", "conflicts", "security", "recs", "history")) {
+            sendKey(s, false, "command.help." + k);
+        }
     }
 
-    private String color(Severity sev) { return sev(sev) + " §7" + sev.name(); }
+    // -- Helfer --
+
+    private String status(Severity sev) { return sev(sev) + " &7" + sev.name(); }
 
     private String sev(Severity sev) {
         return switch (sev) {
-            case OK, INFO -> "§a●";
-            case LOW      -> "§e●";
-            case MEDIUM   -> "§6●";
-            case HIGH     -> "§c●";
-            case CRITICAL -> "§4●";
+            case OK, INFO -> "&a●";
+            case LOW      -> "&e●";
+            case MEDIUM   -> "&6●";
+            case HIGH     -> "&c●";
+            case CRITICAL -> "&4●";
         };
+    }
+
+    private static String num(double v) {
+        return Double.isNaN(v) ? "n/a" : String.format(Locale.ROOT, "%.1f", v);
+    }
+
+    private void sendKey(CommandSender s, boolean withPrefix, String key) { send(s, withPrefix, msg.get(key)); }
+
+    private void send(CommandSender s, boolean withPrefix, String line) {
+        String full = (withPrefix ? msg.raw("prefix") : "") + line;
+        s.sendMessage(ChatColor.translateAlternateColorCodes('&', full));
     }
 
     @Override

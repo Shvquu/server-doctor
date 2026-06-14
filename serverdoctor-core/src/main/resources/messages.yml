@@ -1,0 +1,60 @@
+# ============================================================
+#  ServerDoctor - Nachrichten / Messages
+#  &  = Farbcode (z. B. &a grün, &c rot) - auf Proxies ignoriert
+#  {} = Platzhalter, werden zur Laufzeit ersetzt - NICHT übersetzen
+#  Fehlende Zeilen fallen automatisch auf die Standardtexte zurück.
+# ============================================================
+
+prefix: "&8[&bServerDoctor&8] &r"
+
+startup.enabled: "ServerDoctor aktiviert auf {platform} {version}"
+
+# --- Update-Prüfung ---
+update.available.header: "============================================================"
+update.available.line: " Ein Update ist verfügbar: {current} -> {latest}"
+update.available.download: " Download: {url}"
+update.disabling: "ServerDoctor wird deaktiviert, bis das Update eingespielt ist."
+update.up-to-date: "ServerDoctor ist aktuell ({current})."
+update.no-releases: "Update-Prüfung: keine Releases gefunden."
+update.error: "Update-Prüfung fehlgeschlagen: {detail}"
+
+# --- /serverdoctor scan ---
+command.scan.running: "&7Analyse läuft …"
+command.scan.summary: "&7Status: {status} &8| &7Konflikte: &f{conflicts} &8| &7Risiken: &f{risks} &8| &7Empfehlungen: &f{recommendations}"
+command.scan.details: "&7Details: &f/serverdoctor report"
+
+# --- /serverdoctor report ---
+command.report.none: "&7Noch kein Report. Erst &f/serverdoctor scan&7."
+command.report.header: "&lDiagnose-Report"
+command.report.status: "&8» &7Status: {status}"
+command.report.recommendations: "&8» &7Empfehlungen: &f{count} &7(&f/serverdoctor recs&7)"
+
+# --- /serverdoctor tps ---
+command.performance.line: "&8» &7TPS: &f{tps} &8| &7MSPT: &f{mspt} &8| &7RAM: &f{ram_used}/{ram_max}MB &8| &7Spieler: &f{players}"
+
+# --- /serverdoctor conflicts ---
+command.conflicts.none: "&aKeine bekannten Konflikte."
+command.conflicts.line: "&f{a} &7+ &f{b} &8- &7{description}"
+
+# --- /serverdoctor security ---
+command.security.none: "&aKeine Risiken gemeldet."
+command.security.line: "&f{plugin} &8- &7{description}"
+
+# --- /serverdoctor recs ---
+command.recommendations.none: "&aKeine Empfehlungen."
+command.recommendations.line: "&f{title} &8- &7{description}"
+
+# --- /serverdoctor history ---
+command.history.none: "&7Noch keine Historie gespeichert."
+command.history.header: "&lPerformance-Historie &7(neueste zuerst)"
+command.history.line: "&8» &7{time} &8| &fTPS {tps} &8| &fRAM {ram}MB &8| &fSpieler {players}"
+
+# --- /serverdoctor (Hilfe) ---
+command.help.header: "&lBefehle"
+command.help.scan: "&8» &f/serverdoctor scan &7- vollständige Analyse"
+command.help.report: "&8» &f/serverdoctor report &7- letzten Report anzeigen"
+command.help.tps: "&8» &f/serverdoctor tps &7- Live-Performance"
+command.help.conflicts: "&8» &f/serverdoctor conflicts &7- Konflikte"
+command.help.security: "&8» &f/serverdoctor security &7- Sicherheits-/Wartungsrisiken"
+command.help.recs: "&8» &f/serverdoctor recs &7- Empfehlungen"
+command.help.history: "&8» &f/serverdoctor history &7- gespeicherte Performance-Historie"

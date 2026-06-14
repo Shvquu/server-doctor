@@ -6,9 +6,11 @@ import com.serverdoctor.api.event.AnalysisFinishedEvent;
 import com.serverdoctor.api.event.PerformanceThresholdReachedEvent;
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.core.engine.ServerDoctorCore;
+import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.paper.command.ServerDoctorCommand;
+import com.serverdoctor.paper.placeholder.ServerDoctorExpansion;
 import com.serverdoctor.paper.platform.PaperServerPlatform;
 import com.serverdoctor.platform.SchedulerAdapter;
 import com.serverdoctor.storage.StorageConfig;
@@ -17,12 +19,16 @@ import com.serverdoctor.storage.StorageProviders;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 /** Einstiegspunkt auf Paper. Verdrahtet Core, Storage, Command und periodischen Scan. */
 public final class ServerDoctorPaperPlugin extends JavaPlugin {
 
     private ServerDoctorCore core;
     private StorageProvider storage;
+    private MessageStore messageStore;
     private SchedulerAdapter.Cancellable periodicTask;
 
     @Override
@@ -32,6 +38,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
 
+        this.messageStore = loadMessages();
         this.storage = openStorage();
         // Jeder abgeschlossene Lauf wird persistiert (entkoppelt über den EventBus).
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
@@ -55,7 +62,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         // Optionale PlaceholderAPI-Integration - nur wenn installiert.
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             try {
-                new com.serverdoctor.paper.placeholder.ServerDoctorExpansion(this, api).register();
+                new ServerDoctorExpansion(this, api).register();
                 getLogger().info("PlaceholderAPI-Integration aktiviert.");
             } catch (Throwable t) {
                 getLogger().warning("PlaceholderAPI-Hook fehlgeschlagen: " + t.getMessage());
@@ -74,6 +81,23 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         getLogger().info("ServerDoctor aktiviert auf " + platform.serverInfo().version());
 
         checkForUpdates(platform);
+    }
+
+    private MessageStore loadMessages() {
+        MessageStore store = new MessageStore();
+        try (InputStream in = getResource("messages.yml")) {
+            store.loadDefaults(in);
+        } catch (Exception ignored) { }
+
+        if (!new File(getDataFolder(), "message.yml").exists()) {
+            saveResource("message.yml", false);
+        }
+        File file = new File(getDataFolder(), "message.yml");
+        if (file.exists()) {
+            try { store.applyOverrides(Files.readString(file.toPath(), StandardCharsets.UTF_8)); }
+            catch (Exception ex) { getLogger().warning("messages.yml nicht lesbar: " + ex.getMessage()); }
+        }
+        return store;
     }
 
     private void checkForUpdates(PaperServerPlatform platform) {
