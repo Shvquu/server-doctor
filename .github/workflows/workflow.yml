@@ -51,6 +51,11 @@ jobs:
 
           loaders: |
             paper
+            bukkit
+            spigot
+            folia
+            purpur
+            velocity
 
           game-versions: |
             26.1.2
