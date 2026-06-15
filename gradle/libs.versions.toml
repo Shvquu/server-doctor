@@ -5,6 +5,11 @@ placeholderapi = "2.11.6"
 junit          = "5.11.3"
 sqlite         = "3.46.1.3"
 archunit       = "1.3.0"
+hikari     = "5.1.0"
+postgresql = "42.7.4"
+mariadb    = "3.4.1"
+mongodb    = "5.2.1"
+snakeyaml = "2.3"
 
 [libraries]
 paper-api       = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
@@ -14,6 +19,11 @@ sqlite-jdbc     = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
 junit-bom       = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter   = { module = "org.junit.jupiter:junit-jupiter" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+hikaricp       = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+postgresql     = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+mariadb-client = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb" }
+mongodb-sync   = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongodb" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version = "8.3.5" }
