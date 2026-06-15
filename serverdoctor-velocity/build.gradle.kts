@@ -4,6 +4,8 @@ dependencies {
     implementation(project(":serverdoctor-common"))
     implementation(project(":serverdoctor-storage"))
 
+    implementation(libs.snakeyaml)            // nur für das config.yml-Parsing
+
     compileOnly(libs.velocity.api)
-    annotationProcessor(libs.velocity.api)   // generiert velocity-plugin.json aus @Plugin
+    annotationProcessor(libs.velocity.api)
 }

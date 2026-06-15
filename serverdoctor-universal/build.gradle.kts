@@ -13,9 +13,8 @@ tasks {
     shadowJar {
         archiveBaseName.set("serverdoctor")
         archiveClassifier.set("")
-        // Eine Jar, die plugin.yml (Paper/Folia) UND velocity-plugin.json (Velocity) enthält.
+        relocate("org.yaml.snakeyaml", "com.serverdoctor.libs.snakeyaml")
     }
-    build {
-        dependsOn(shadowJar)
+    build { dependsOn(shadowJar)
     }
 }
