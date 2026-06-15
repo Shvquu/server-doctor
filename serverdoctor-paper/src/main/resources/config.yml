@@ -1,0 +1,46 @@
+# ServerDoctor configuration
+# Read-only Analyse-Plattform - diese Datei verändert nichts am Server.
+
+storage:
+  # Aktives Backend. Eines von: memory | sqlite | postgresql | mariadb | mongodb
+  type: sqlite
+
+  # ---- Dateibasiert (keine Zugangsdaten) ------------------------------------
+  sqlite:
+    # Relativ zum Plugin-Datenordner oder absoluter Pfad.
+    file: "serverdoctor.db"
+
+  # ---- PostgreSQL -----------------------------------------------------------
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "serverdoctor"
+    username: "serverdoctor"
+    password: "changeme"
+    # Optionale JDBC-Properties (werden als ?k=v an die URL gehängt).
+    properties:
+      sslmode: "disable"
+
+  # ---- MariaDB / MySQL ------------------------------------------------------
+  mariadb:
+    host: "localhost"
+    port: 3306
+    database: "serverdoctor"
+    username: "serverdoctor"
+    password: "changeme"
+    properties:
+      useSSL: "false"
+      allowPublicKeyRetrieval: "true"
+
+  # ---- MongoDB --------------------------------------------------------------
+  mongodb:
+    # Wenn gesetzt, hat dies Vorrang vor den Einzelfeldern darunter.
+    # z. B. "mongodb+srv://user:pass@cluster0.example.mongodb.net/serverdoctor"
+    connection-string: ""
+    host: "localhost"
+    port: 27017
+    database: "serverdoctor"
+    username: "serverdoctor"
+    password: "changeme"
+    # Datenbank, gegen die authentifiziert wird (oft "admin").
+    auth-database: "admin"
