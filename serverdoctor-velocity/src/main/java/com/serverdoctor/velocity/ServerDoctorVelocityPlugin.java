@@ -13,6 +13,7 @@ import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
 import com.serverdoctor.velocity.platform.VelocityServerPlatform;
+import com.serverdoctor.velocity.storage.VelocityStorageSettings;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -30,7 +31,7 @@ import java.nio.file.Path;
 @Plugin(
         id = "serverdoctor",
         name = "ServerDoctor",
-        version = "0.6.0",
+        version = "0.7.0",
         description = "Read-only analysis, diagnostics and monitoring for Minecraft networks.",
         authors = {"LittleSophyy", "zNixFNA", "DeltaNimrod"}
 )
@@ -71,7 +72,7 @@ public final class ServerDoctorVelocityPlugin {
         });
 
         proxy.getCommandManager().register(
-                proxy.getCommandManager().metaBuilder("serverdoctor").aliases("sd").build(),
+                proxy.getCommandManager().metaBuilder("serverdoctor").aliases("sd", "docotor").build(),
                 new ServerDoctorVelocityCommand(api, messages, this::reloadMessages));
 
         platform.scheduler().runRepeatingAsync(api::runDiagnostics, 20L * 30L, 20L * 60L * 5L);
@@ -167,17 +168,25 @@ public final class ServerDoctorVelocityPlugin {
                 .orElse("0.6.0");
     }
 
-
     private StorageProvider openStorage() {
+        StorageConfig cfg;
         try {
-            Files.createDirectories(dataDirectory);
-            Path db = dataDirectory.resolve("serverdoctor.db");
-            StorageProvider provider = StorageProviders.create(StorageConfig.sqlite(db.toString()));
+            cfg = VelocityStorageSettings.load(dataDirectory, getClass().getResourceAsStream("/config.yml"));
+        } catch (Exception ex) {
+            logger.warn("Storage-Konfiguration ungültig ({}) - nutze SQLite.", ex.getMessage());
+            try {
+                java.nio.file.Files.createDirectories(dataDirectory);
+            } catch (Exception ignored) { }
+            cfg = StorageConfig.sqlite(dataDirectory.resolve("serverdoctor.db").toString());
+        }
+
+        try {
+            StorageProvider provider = StorageProviders.create(cfg);
             provider.initialize();
-            logger.info("Storage: SQLite ({})", db);
+            logger.info("Storage: {}", cfg.type());
             return provider;
         } catch (Exception ex) {
-            logger.warn("SQLite nicht verfügbar ({}) - nutze In-Memory-Storage.", ex.getMessage());
+            logger.warn("{} nicht verfügbar ({}) - nutze In-Memory-Storage.", cfg.type(), ex.getMessage());
             StorageProvider provider = StorageProviders.create(StorageConfig.memory());
             provider.initialize();
             return provider;

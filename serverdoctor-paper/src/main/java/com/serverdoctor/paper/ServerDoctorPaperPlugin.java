@@ -12,6 +12,7 @@ import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.paper.command.ServerDoctorCommand;
 import com.serverdoctor.paper.placeholder.ServerDoctorExpansion;
 import com.serverdoctor.paper.platform.PaperServerPlatform;
+import com.serverdoctor.paper.storage.StorageSettings;
 import com.serverdoctor.platform.SchedulerAdapter;
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
@@ -22,11 +23,11 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 
 /** Einstiegspunkt auf Paper. Verdrahtet Core, Storage, Command und periodischen Scan. */
 public final class ServerDoctorPaperPlugin extends JavaPlugin {
 
-    private ServerDoctorCore core;
     private StorageProvider storage;
     private MessageStore messageStore;
     private SchedulerAdapter.Cancellable periodicTask;
@@ -34,7 +35,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         PaperServerPlatform platform = new PaperServerPlatform(this);
-        this.core = ServerDoctorCore.bootstrap(platform);
+        ServerDoctorCore core = ServerDoctorCore.bootstrap(platform);
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
 
@@ -136,17 +137,29 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
     }
 
     private StorageProvider openStorage() {
+        if (!getDataFolder().exists() && !getDataFolder().mkdirs()) {
+            getLogger().warning("Datenordner konnte nicht erstellt werden.");
+        }
+        saveDefaultConfig();
+        getConfig().options().copyDefaults(true);
+        saveConfig();
+
+        StorageConfig cfg;
         try {
-            if (!getDataFolder().exists() && !getDataFolder().mkdirs()) {
-                throw new IllegalStateException("Datenordner konnte nicht erstellt werden.");
-            }
-            File db = new File(getDataFolder(), "serverdoctor.db");
-            StorageProvider provider = StorageProviders.create(StorageConfig.sqlite(db.getAbsolutePath()));
+            cfg = StorageSettings.from(getConfig(), getDataFolder());
+        } catch (Exception ex) {
+            getLogger().warning("Storage-Konfiguration ungültig (" + ex.getMessage() + ") - nutze SQLite.");
+            cfg = StorageConfig.sqlite(new File(getDataFolder(), "serverdoctor.db").getAbsolutePath());
+        }
+
+        try {
+            StorageProvider provider = StorageProviders.create(cfg);
             provider.initialize();
-            getLogger().info("Storage: SQLite (" + db.getName() + ")");
+            getLogger().info("Storage: " + cfg.type());
             return provider;
         } catch (Exception ex) {
-            getLogger().warning("SQLite nicht verfügbar (" + ex.getMessage() + ") - nutze In-Memory-Storage.");
+            getLogger().warning(cfg.type() + " nicht verfügbar (" + ex.getMessage()
+                    + ") - nutze In-Memory-Storage.");
             StorageProvider provider = StorageProviders.create(StorageConfig.memory());
             provider.initialize();
             return provider;
