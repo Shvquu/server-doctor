@@ -1,6 +1,6 @@
 [versions]
 paper          = "1.21.4-R0.1-SNAPSHOT"
-velocity       = "3.4.0-SNAPSHOT"
+velocity       = "3.5.0-SNAPSHOT"
 placeholderapi = "2.11.6"
 junit          = "6.1.0"
 sqlite         = "3.46.1.3"
