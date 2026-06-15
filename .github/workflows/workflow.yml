@@ -29,18 +29,55 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Project
-        run: ./gradlew :serverdoctor-universal:build
-
-      - name: Collect Jars
-        run: |
-          mkdir release-assets
-          find . -path "*/build/libs/*.jar" \
-            ! -name "*-sources.jar" \
-            ! -name "*-javadoc.jar" \
-            -exec cp {} release-assets/ \;
+        run: ./gradlew :serverdoctor-universal:build -x test
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           files: serverdoctor-universal/build/libs/*.jar
+
+      - name: Upload to Modrinth
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: MiSXFAz1
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          files: |
+            serverdoctor-universal/build/libs/*.jar
+
+          name: ServerDoctor ${{ github.ref_name }}
+          version: ${{ github.ref_name }}
+
+          loaders: |
+            paper
+
+          game-versions: |
+            26.1.2
+            26.1.1
+            26.1
+            1.21.11
+            1.21.10
+            1.21.9
+            1.21.8
+            1.21.7
+            1.21.6
+            1.21.5
+            1.21.4
+            1.21.3
+            1.21.3
+            1.21.2
+            1.21.1
+            1.21
+            1.20.6
+            1.20.5
+            1.20.4
+            1.20.3
+            1.20.2
+            1.20.1
+            1.20
+          dependencies: |
+            placeholder-api(optional)
+            protocollib(optional)  
+
+          version-type: release
