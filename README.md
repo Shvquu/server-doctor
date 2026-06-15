@@ -5,7 +5,7 @@
 [![Version](https://img.shields.io/badge/version-0.6.0-informational.svg)](https://github.com/Shvquu/server-doctor/releases)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
 [![Paper/Folia](https://img.shields.io/badge/Paper%2FFolia-1.21.x-brightgreen.svg)](https://papermc.io/)
-[![Velocity](https://img.shields.io/badge/Velocity-3.4-brightgreen.svg)](https://papermc.io/software/velocity)
+[![Velocity](https://img.shields.io/badge/Velocity-3.5-brightgreen.svg)](https://papermc.io/software/velocity)
 
 Read-only analysis, diagnostics and monitoring platform for Minecraft servers and proxies.
 **Analyzes, evaluates, recommends, warns — never changes anything on the server.**
