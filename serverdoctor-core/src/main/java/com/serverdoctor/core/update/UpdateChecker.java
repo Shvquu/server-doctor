@@ -22,6 +22,10 @@ public class UpdateChecker {
         this(repository, currentVersion, Duration.ofSeconds(8));
     }
 
+    public UpdateChecker(String repository, String currentVersion, Integer durationInSeconds) {
+        this(repository, currentVersion, Duration.ofSeconds(durationInSeconds));
+    }
+
     public UpdateChecker(String repository, String currentVersion, Duration timeout) {
         this.repository = repository;
         this.currentVersion = currentVersion;

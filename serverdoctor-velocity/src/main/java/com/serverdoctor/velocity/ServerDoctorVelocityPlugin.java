@@ -165,7 +165,7 @@ public final class ServerDoctorVelocityPlugin {
     private String currentVersion() {
         return proxy.getPluginManager().fromInstance(this)
                 .flatMap(container -> container.getDescription().getVersion())
-                .orElse("0.6.0");
+                .orElse("0.7.0");
     }
 
     private StorageProvider openStorage() {
