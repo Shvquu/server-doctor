@@ -8,7 +8,9 @@ include(
     "serverdoctor-paper",
     "serverdoctor-testing",
     "serverdoctor-universal",
+    "serverdoctor-rest-api",
     "serverdoctor-velocity",
+    "serverdoctor-webhook",
 )
 
 dependencyResolutionManagement {

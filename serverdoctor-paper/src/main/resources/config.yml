@@ -44,3 +44,32 @@ storage:
     password: "changeme"
     # Datenbank, gegen die authentifiziert wird (oft "admin").
     auth-database: "admin"
+
+# ---- REST API (read-only HTTP/JSON) ----------------------------------------
+rest-api:
+  enabled: false
+  # Bind address. Keep 127.0.0.1 for localhost-only. If you expose it on
+  # 0.0.0.0, set a token below and/or put it behind a reverse proxy.
+  host: "127.0.0.1"
+  port: 9173
+  # Optional bearer token. If set, every endpoint except /health requires
+  # the header: Authorization: Bearer <token>
+  token: ""
+
+# ---- Webhooks (Discord / Slack / Teams) ------------------------------------
+webhooks:
+  enabled: false
+  # Notify only when the overall status reaches this severity or higher.
+  # One of: INFO | LOW | MEDIUM | HIGH | CRITICAL
+  min-severity: HIGH
+  # Fires on status change (new/worse/recovered), not on every scan.
+  targets:
+    - type: discord
+      name: "ops"
+      url: ""
+    - type: slack
+      name: ""
+      url: ""
+    - type: teams
+      name: ""
+      url: ""
