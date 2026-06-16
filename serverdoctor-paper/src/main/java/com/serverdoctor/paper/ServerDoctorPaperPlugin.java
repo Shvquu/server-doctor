@@ -12,11 +12,14 @@ import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.paper.command.ServerDoctorCommand;
 import com.serverdoctor.paper.placeholder.ServerDoctorExpansion;
 import com.serverdoctor.paper.platform.PaperServerPlatform;
+import com.serverdoctor.paper.service.PaperServiceSettings;
 import com.serverdoctor.paper.storage.StorageSettings;
 import com.serverdoctor.platform.SchedulerAdapter;
+import com.serverdoctor.rest.RestApiServer;
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
+import com.serverdoctor.webhook.WebhookDispatcher;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -31,6 +34,8 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
     private StorageProvider storage;
     private MessageStore messageStore;
     private SchedulerAdapter.Cancellable periodicTask;
+    private RestApiServer restApiServer;
+    private WebhookDispatcher webhooks;
 
     @Override
     public void onEnable() {
@@ -80,6 +85,26 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         }, 20L * 30L, fiveMinutes);
 
         getLogger().info("ServerDoctor aktiviert auf " + platform.serverInfo().version());
+
+        this.restApiServer = new RestApiServer(api, PaperServiceSettings.restApi(getConfig()),
+                getDescription().getVersion(), msg -> getLogger().info(msg));
+
+        this.webhooks = new WebhookDispatcher(PaperServiceSettings.webhooks(getConfig()),
+                api.events(), platform.serverInfo().platform() + " " + platform.serverInfo().version(),
+                msg -> getLogger().warning(msg));
+
+        try {
+            restApiServer.start();
+        } catch (Exception ex) {
+            getLogger().warning("Fehler beim Starten des REST-API-Servers: " + ex.getMessage());
+        }
+
+        try {
+            webhooks.start();
+            getLogger().info("Webhooks aktiviert");
+        } catch (Exception ex) {
+            getLogger().warning("Fehler beim Starten der Webhooks: " + ex.getMessage());
+        }
 
         checkForUpdates(platform);
     }
@@ -173,6 +198,8 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             try { storage.close(); } catch (Exception ignored) { }
         }
         ServerDoctorProvider.unregister();
+
+        if (restApiServer != null) restApiServer.stop();
         getLogger().info("ServerDoctor deaktiviert.");
     }
 }

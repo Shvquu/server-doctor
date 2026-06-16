@@ -9,11 +9,14 @@ import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.platform.SchedulerAdapter;
+import com.serverdoctor.rest.RestApiServer;
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
 import com.serverdoctor.velocity.platform.VelocityServerPlatform;
+import com.serverdoctor.velocity.service.VelocityServiceSettings;
 import com.serverdoctor.velocity.storage.VelocityStorageSettings;
+import com.serverdoctor.webhook.WebhookDispatcher;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -26,12 +29,13 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 /** Einstiegspunkt auf Velocity. Lädt aus derselben Jar wie das Paper/Folia-Plugin. */
 @Plugin(
         id = "serverdoctor",
         name = "ServerDoctor",
-        version = "0.7.0",
+        version = "0.8.0",
         description = "Read-only analysis, diagnostics and monitoring for Minecraft networks.",
         authors = {"LittleSophyy", "zNixFNA", "DeltaNimrod"}
 )
@@ -46,6 +50,9 @@ public final class ServerDoctorVelocityPlugin {
     private MessageStore messages;
     private SchedulerAdapter.Cancellable periodicTask;
 
+    private RestApiServer restApiServer;
+    private WebhookDispatcher webhooks;
+
     @Inject
     public ServerDoctorVelocityPlugin(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
         this.proxy = proxy;
@@ -54,7 +61,7 @@ public final class ServerDoctorVelocityPlugin {
     }
 
     @Subscribe
-    public void onProxyInitialize(ProxyInitializeEvent event) {
+    public void onProxyInitialize(ProxyInitializeEvent event) throws Exception {
         VelocityServerPlatform platform = new VelocityServerPlatform(proxy, logger, this);
         this.core = ServerDoctorCore.bootstrap(platform);
         ServerDoctorApi api = core.api();
@@ -79,6 +86,23 @@ public final class ServerDoctorVelocityPlugin {
 
         logger.info("ServerDoctor aktiviert auf Velocity {}", proxy.getVersion().getVersion());
 
+        Map<String, Object> svcfg = VelocityServiceSettings.load(dataDirectory);
+        try {
+            this.restApiServer = new RestApiServer(api, VelocityServiceSettings.restApi(svcfg),
+                    currentVersion(), logger::info);
+            restApiServer.start();
+        } catch (Exception e) {
+            logger.warn("Rest-API-Server konnte nicht gestartet werden: {}", e.getMessage());
+        }
+        try {
+            this.webhooks = new WebhookDispatcher(VelocityServiceSettings.webhooks(svcfg),
+                    api.events(), "Velocity " + proxy.getVersion().getVersion(), logger::warn);
+            webhooks.start();
+            logger.info("Webhook-Server aktiviert");
+        } catch (Exception ex) {
+            logger.warn("Webhook-Server konnte nicht gestartet werden: {}", ex.getMessage());
+        }
+
         checkForUpdate(platform);
     }
 
@@ -86,6 +110,10 @@ public final class ServerDoctorVelocityPlugin {
     public void onProxyShutdown(ProxyShutdownEvent event) {
         if (storage != null) {
             try { storage.close(); } catch (Exception ignored) { }
+        }
+        if (restApiServer != null) {
+            restApiServer.stop();
+            restApiServer = null;
         }
         ServerDoctorProvider.unregister();
     }
@@ -153,6 +181,10 @@ public final class ServerDoctorVelocityPlugin {
             periodicTask.cancel();
             periodicTask = null;
         }
+        if (restApiServer != null) {
+            restApiServer.stop();
+            restApiServer = null;
+        }
         proxy.getCommandManager().unregister("serverdoctor");
         if (storage != null) {
             try { storage.close(); } catch (Exception ignored) { }
@@ -165,7 +197,7 @@ public final class ServerDoctorVelocityPlugin {
     private String currentVersion() {
         return proxy.getPluginManager().fromInstance(this)
                 .flatMap(container -> container.getDescription().getVersion())
-                .orElse("0.7.0");
+                .orElse("0.8.0");
     }
 
     private StorageProvider openStorage() {

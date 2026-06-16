@@ -3,6 +3,8 @@ dependencies {
     implementation(project(":serverdoctor-api"))
     implementation(project(":serverdoctor-common"))
     implementation(project(":serverdoctor-storage"))
+    implementation(project(":serverdoctor-rest-api"))
+    implementation(project(":serverdoctor-webhook"))
 
     compileOnly(libs.paper.api)
     compileOnly(libs.placeholderapi)   // optional - nur zur Compile-Zeit
