@@ -6,6 +6,10 @@ import com.serverdoctor.api.event.AnalysisFinishedEvent;
 import com.serverdoctor.api.event.PerformanceThresholdReachedEvent;
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.core.engine.ServerDoctorCore;
+import com.serverdoctor.paper.config.PaperRuntimeSettings;
+import com.serverdoctor.paper.gui.GuiSettings;
+import com.serverdoctor.paper.gui.ServerDoctorGui;
+import com.serverdoctor.paper.tasks.TasksSettings;
 import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
@@ -37,6 +41,9 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
     private RestApiServer restApiServer;
     private WebhookDispatcher webhooks;
 
+    // GUI
+    private ServerDoctorGui gui;
+
     @Override
     public void onEnable() {
         PaperServerPlatform platform = new PaperServerPlatform(this);
@@ -55,7 +62,13 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             }
         });
 
-        ServerDoctorCommand command = new ServerDoctorCommand(api, storage, messageStore, this::reloadMessages);
+        GuiSettings guiSettings = PaperRuntimeSettings.gui(getConfig());
+        if (guiSettings.enabled()) {
+            this.gui = new ServerDoctorGui(this, api, storage, guiSettings);
+            gui.register();
+        }
+
+        ServerDoctorCommand command = new ServerDoctorCommand(api, storage, messageStore, this::reloadMessages, gui);
         var pluginCommand = getCommand("serverdoctor");
         if (pluginCommand != null) {
             pluginCommand.setExecutor(command);
@@ -75,14 +88,16 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             }
         }
 
-        long fiveMinutes = 20L * 60L * 5L;
-        this.periodicTask = platform.scheduler().runRepeatingAsync(() -> {
-            var report = api.runDiagnostics();
-            if (report.overallSeverity().atLeast(Severity.HIGH)) {
-                getLogger().warning("ServerDoctor: Status " + report.overallSeverity()
-                        + " - /serverdoctor report für Details.");
-            }
-        }, 20L * 30L, fiveMinutes);
+        TasksSettings tasks = PaperRuntimeSettings.tasks(getConfig());
+        if (tasks.scanEnabled()) {
+            this.periodicTask = platform.scheduler().runRepeatingAsync(() -> {
+                var report = api.runDiagnostics();
+                if (tasks.warnOnHigh() && report.overallSeverity().atLeast(Severity.HIGH)) {
+                    getLogger().warning("ServerDoctor: Status " + report.overallSeverity()
+                            + " - /serverdoctor report für Details.");
+                }
+            }, tasks.initDelayTicks(), tasks.intervalTicks());
+        }
 
         getLogger().info("ServerDoctor aktiviert auf " + platform.serverInfo().version());
 
