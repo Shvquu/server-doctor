@@ -1,6 +1,21 @@
 # ServerDoctor configuration
 # Read-only Analyse-Plattform - diese Datei verändert nichts am Server.
 
+# ---- In-game GUI (Paper/Folia) ---------------------------------------------
+gui:
+  enabled: true
+  title: "ServerDoctor"        # window title prefix
+
+# ---- Automated tasks (Paper/Folia) -----------------------------------------
+tasks:
+  # Periodic full analysis. Fires the same events as /serverdoctor scan, so it
+  # also feeds storage history and (if enabled) webhooks.
+  scan:
+    enabled: true
+    interval-seconds: 120        # e.g. every 120 seconds (minimum 10)
+    initial-delay-seconds: 30    # wait this long after startup before the first run
+    warn-on-high: true           # log a warning when overall status >= HIGH
+
 storage:
   # Aktives Backend. Eines von: memory | sqlite | postgresql | mariadb | mongodb
   type: sqlite

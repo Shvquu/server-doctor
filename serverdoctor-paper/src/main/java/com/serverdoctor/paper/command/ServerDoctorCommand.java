@@ -9,12 +9,15 @@ import com.serverdoctor.common.model.Recommendation;
 import com.serverdoctor.common.model.SecurityRisk;
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.paper.gui.MenuType;
+import com.serverdoctor.paper.gui.ServerDoctorGui;
 import com.serverdoctor.storage.StorageProvider;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
@@ -29,12 +32,14 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
     private final StorageProvider storage;
     private final MessageStore msg;
     private final Runnable reloadHandler;
+    private final ServerDoctorGui gui;
 
-    public ServerDoctorCommand(ServerDoctorApi api, StorageProvider storage, MessageStore msg, Runnable reloadHandler) {
+    public ServerDoctorCommand(ServerDoctorApi api, StorageProvider storage, MessageStore msg, Runnable reloadHandler, ServerDoctorGui gui) {
         this.api = api;
         this.storage = storage;
         this.msg = msg;
         this.reloadHandler = reloadHandler;
+        this.gui = gui;
     }
 
     @Override
@@ -51,6 +56,8 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
             case "history",
                  "hist"            -> history(s);
             case "reload"          -> reload(s);
+            case "gui",
+                 "menu"            -> openGui(s);
             default                -> help(s);
         }
         return true;
@@ -134,6 +141,12 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
         }
     }
 
+    private void openGui(CommandSender s) {
+        if (gui == null) { send(s, true, "&cThe GUI is disabled."); return; }
+        if (!(s instanceof Player p)) { send(s, true, "&cThis command is only for players."); return; }
+        gui.open(p, MenuType.MAIN);
+    }
+
     // -- Helfer --
 
     private String status(Severity sev) { return sev(sev) + " &7" + sev.name(); }
@@ -163,7 +176,7 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
     public List<String> onTabComplete(@NonNull CommandSender s, @NonNull Command cmd, @NonNull String label, String[] args) {
         if (args.length == 1) {
             List<String> opts = new ArrayList<>();
-            Stream.of("scan", "report", "tps", "conflicts", "security", "recs", "history", "reload")
+            Stream.of("scan", "report", "tps", "conflicts", "security", "recs", "history", "reload", "gui", "menu")
                     .filter(o -> o.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .forEach(opts::add);
             return opts;
