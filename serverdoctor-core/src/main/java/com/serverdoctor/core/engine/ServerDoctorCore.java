@@ -2,6 +2,8 @@ package com.serverdoctor.core.engine;
 
 import com.serverdoctor.api.ServerDoctorApi;
 import com.serverdoctor.api.event.EventBus;
+import com.serverdoctor.core.advisory.AdvisorySource;
+import com.serverdoctor.core.advisory.NoopAdvisorySource;
 import com.serverdoctor.core.conflict.ConflictDatabase;
 import com.serverdoctor.core.event.EventBusImpl;
 import com.serverdoctor.core.recommendation.RecommendationEngine;
@@ -31,7 +33,13 @@ public final class ServerDoctorCore {
         this.conflictDatabase = db;
     }
 
+    /** Bootstrap without an advisory feed (backward-compatible). */
     public static ServerDoctorCore bootstrap(ServerPlatform platform) {
+        return bootstrap(platform, NoopAdvisorySource.INSTANCE);
+    }
+
+    /** Bootstrap with a security advisory source (use {@code AdvisorySources} to build one). */
+    public static ServerDoctorCore bootstrap(ServerPlatform platform, AdvisorySource advisorySource) {
         EventBus eventBus = new EventBusImpl(platform.logger());
         ScannerRegistry registry = new ScannerRegistry();
         ConflictDatabase conflictDatabase = ConflictDatabase.withDefaults();
@@ -40,7 +48,8 @@ public final class ServerDoctorCore {
         registry.register(new DependencyScanner());
         registry.register(new ConflictScanner(conflictDatabase));
         registry.register(new PerformanceScanner());
-        registry.register(new SecurityScanner());
+        registry.register(new SecurityScanner(
+                advisorySource == null ? NoopAdvisorySource.INSTANCE : advisorySource));
 
         RecommendationEngine recommendations = new RecommendationEngine();
         AnalysisEngine engine = new AnalysisEngine(platform, registry, recommendations, eventBus);

@@ -11,6 +11,7 @@ include(
     "serverdoctor-rest-api",
     "serverdoctor-velocity",
     "serverdoctor-webhook",
+    "serverdoctor-bungeecord",
 )
 
 dependencyResolutionManagement {
@@ -18,5 +19,10 @@ dependencyResolutionManagement {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
+
+        // BungeeCord API
+        maven("https://oss.sonatype.org/content/repositories/snapshots") {
+            mavenContent { snapshotsOnly() }   // optional: nur Snapshots hier suchen
+        }
     }
 }

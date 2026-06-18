@@ -16,6 +16,18 @@ tasks:
     initial-delay-seconds: 30    # wait this long after startup before the first run
     warn-on-high: true           # log a warning when overall status >= HIGH
 
+# ---- Security advisory feed (off by default) -------------------------------
+# There is no canonical CVE database for Minecraft plugins, so this checks
+# installed plugins against a REAL, external feed that you (or the community)
+# maintain. Disabled and empty by default -> behaves exactly as before.
+security:
+  advisory:
+    enabled: false
+    # HTTPS URL of a feed in the documented pipe format (see advisories.sample.txt).
+    # e.g. https://raw.githubusercontent.com/<org>/<repo>/main/advisories.txt
+    feed-url: ""
+    refresh-minutes: 360
+
 storage:
   # Aktives Backend. Eines von: memory | sqlite | postgresql | mariadb | mongodb
   type: sqlite
