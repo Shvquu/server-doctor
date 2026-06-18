@@ -4,7 +4,7 @@
 _Planned: BungeeCord adapter, an example integration plugin, and a real security advisory
 source._
 
-## [0.9.0](https://github.com/Shvquu/server-doctor/releases/tag/v0.9.0) - 2026-06-18
+## [0.9.0 - b858d8d](https://github.com/Shvquu/server-doctor/releases/tag/v0.9.0) - 2026-06-18
 
 ### Added
 - BungeeCord support: new `serverdoctor-bungeecord` proxy adapter (HAS_PLUGINS + IS_PROXY).
