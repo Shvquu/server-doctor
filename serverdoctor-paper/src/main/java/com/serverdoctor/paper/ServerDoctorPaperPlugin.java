@@ -5,55 +5,60 @@ import com.serverdoctor.api.ServerDoctorProvider;
 import com.serverdoctor.api.event.AnalysisFinishedEvent;
 import com.serverdoctor.api.event.PerformanceThresholdReachedEvent;
 import com.serverdoctor.common.model.Severity;
+import com.serverdoctor.core.advisory.AdvisorySource;
+import com.serverdoctor.core.advisory.AdvisorySources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
-import com.serverdoctor.paper.config.PaperRuntimeSettings;
-import com.serverdoctor.paper.gui.GuiSettings;
-import com.serverdoctor.paper.gui.ServerDoctorGui;
-import com.serverdoctor.paper.tasks.TasksSettings;
 import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.paper.command.ServerDoctorCommand;
+import com.serverdoctor.paper.config.PaperRuntimeSettings;
+import com.serverdoctor.paper.gui.GuiSettings;
+import com.serverdoctor.paper.gui.ServerDoctorGui;
 import com.serverdoctor.paper.placeholder.ServerDoctorExpansion;
 import com.serverdoctor.paper.platform.PaperServerPlatform;
 import com.serverdoctor.paper.service.PaperServiceSettings;
 import com.serverdoctor.paper.storage.StorageSettings;
+import com.serverdoctor.paper.tasks.TasksSettings;
 import com.serverdoctor.platform.SchedulerAdapter;
 import com.serverdoctor.rest.RestApiServer;
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
 import com.serverdoctor.webhook.WebhookDispatcher;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.List;
 
-/** Einstiegspunkt auf Paper. Verdrahtet Core, Storage, Command und periodischen Scan. */
+/** Entry point on Paper/Folia. Wires core, storage, advisory, GUI, tasks, command, REST + webhooks. */
 public final class ServerDoctorPaperPlugin extends JavaPlugin {
 
+    private ServerDoctorCore core;
     private StorageProvider storage;
     private MessageStore messageStore;
-    private SchedulerAdapter.Cancellable periodicTask;
-    private RestApiServer restApiServer;
-    private WebhookDispatcher webhooks;
-
-    // GUI
     private ServerDoctorGui gui;
+    private RestApiServer restApi;
+    private SchedulerAdapter.Cancellable periodicTask;
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+
         PaperServerPlatform platform = new PaperServerPlatform(this);
-        ServerDoctorCore core = ServerDoctorCore.bootstrap(platform);
+
+        // Advisory source from config (off by default) -> passed into bootstrap.
+        AdvisorySource advisories = buildAdvisorySource();
+        this.core = ServerDoctorCore.bootstrap(platform, advisories);
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
 
         this.messageStore = loadMessages();
         this.storage = openStorage();
-        // Jeder abgeschlossene Lauf wird persistiert (entkoppelt über den EventBus).
+
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
             try {
                 storage.saveReport(e.report());
@@ -62,6 +67,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             }
         });
 
+        // In-game GUI (Paper/Folia)
         GuiSettings guiSettings = PaperRuntimeSettings.gui(getConfig());
         if (guiSettings.enabled()) {
             this.gui = new ServerDoctorGui(this, api, storage, guiSettings);
@@ -78,7 +84,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         api.events().subscribe(PerformanceThresholdReachedEvent.class, e ->
                 getLogger().warning("[Performance] " + e.reason()));
 
-        // Optionale PlaceholderAPI-Integration - nur wenn installiert.
+        // Optional PlaceholderAPI integration - only if installed.
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             try {
                 new ServerDoctorExpansion(this, api).register();
@@ -88,6 +94,20 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             }
         }
 
+        // REST API (no-op if disabled in config.yml)
+        try {
+            this.restApi = new RestApiServer(api, PaperServiceSettings.restApi(getConfig()),
+                    getDescription().getVersion(), msg -> getLogger().info(msg));
+            this.restApi.start();
+        } catch (Exception ex) {
+            getLogger().warning("REST API konnte nicht starten: " + ex.getMessage());
+        }
+
+        // Webhooks (no-op if disabled / no valid targets). Subscribes to the event bus itself.
+        new WebhookDispatcher(PaperServiceSettings.webhooks(getConfig()), api.events(),
+                "Paper", msg -> getLogger().warning(msg)).start();
+
+        // Configurable periodic scan (replaces the old hard-coded 5-minute task).
         TasksSettings tasks = PaperRuntimeSettings.tasks(getConfig());
         if (tasks.scanEnabled()) {
             this.periodicTask = platform.scheduler().runRepeatingAsync(() -> {
@@ -101,27 +121,30 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
 
         getLogger().info("ServerDoctor aktiviert auf " + platform.serverInfo().version());
 
-        this.restApiServer = new RestApiServer(api, PaperServiceSettings.restApi(getConfig()),
-                getDescription().getVersion(), msg -> getLogger().info(msg));
-
-        this.webhooks = new WebhookDispatcher(PaperServiceSettings.webhooks(getConfig()),
-                api.events(), platform.serverInfo().platform() + " " + platform.serverInfo().version(),
-                msg -> getLogger().warning(msg));
-
-        try {
-            restApiServer.start();
-        } catch (Exception ex) {
-            getLogger().warning("Fehler beim Starten des REST-API-Servers: " + ex.getMessage());
-        }
-
-        try {
-            webhooks.start();
-            getLogger().info("Webhooks aktiviert");
-        } catch (Exception ex) {
-            getLogger().warning("Fehler beim Starten der Webhooks: " + ex.getMessage());
-        }
-
         checkForUpdates(platform);
+    }
+
+    @Override
+    public void onDisable() {
+        if (periodicTask != null) periodicTask.cancel();
+        if (restApi != null) { restApi.stop(); restApi = null; }
+        if (storage != null) {
+            try { storage.close(); } catch (Exception ignored) { }
+        }
+        ServerDoctorProvider.unregister();
+        getLogger().info("ServerDoctor deaktiviert.");
+    }
+
+    private AdvisorySource buildAdvisorySource() {
+        ConfigurationSection security = getConfig().getConfigurationSection("security");
+        ConfigurationSection adv = security == null ? null : security.getConfigurationSection("advisory");
+        if (adv == null || !adv.getBoolean("enabled", false)) {
+            return AdvisorySources.disabled();
+        }
+        return AdvisorySources.remote(
+                adv.getString("feed-url", ""),
+                adv.getLong("refresh-minutes", 360L),
+                msg -> getLogger().warning(msg));
     }
 
     private MessageStore loadMessages() {
@@ -141,7 +164,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         return store;
     }
 
-    /** Lädt messages.yml neu (für /serverdoctor reload). */
+    /** Reloads messages.yml (for /serverdoctor reload). */
     public void reloadMessages() {
         messageStore.clearOverrides();
         File file = new File(getDataFolder(), "messages.yml");
@@ -177,44 +200,26 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
     }
 
     private StorageProvider openStorage() {
-        if (!getDataFolder().exists() && !getDataFolder().mkdirs()) {
-            getLogger().warning("Datenordner konnte nicht erstellt werden.");
-        }
-        saveDefaultConfig();
-        getConfig().options().copyDefaults(true);
-        saveConfig();
-
         StorageConfig cfg;
         try {
+            if (!getDataFolder().exists() && !getDataFolder().mkdirs()) {
+                throw new IllegalStateException("Datenordner konnte nicht erstellt werden.");
+            }
             cfg = StorageSettings.from(getConfig(), getDataFolder());
         } catch (Exception ex) {
-            getLogger().warning("Storage-Konfiguration ungültig (" + ex.getMessage() + ") - nutze SQLite.");
+            getLogger().warning("Storage-Config ungültig (" + ex.getMessage() + ") - nutze SQLite.");
             cfg = StorageConfig.sqlite(new File(getDataFolder(), "serverdoctor.db").getAbsolutePath());
         }
-
         try {
             StorageProvider provider = StorageProviders.create(cfg);
             provider.initialize();
             getLogger().info("Storage: " + cfg.type());
             return provider;
         } catch (Exception ex) {
-            getLogger().warning(cfg.type() + " nicht verfügbar (" + ex.getMessage()
-                    + ") - nutze In-Memory-Storage.");
+            getLogger().warning(cfg.type() + " nicht verfügbar (" + ex.getMessage() + ") - nutze In-Memory-Storage.");
             StorageProvider provider = StorageProviders.create(StorageConfig.memory());
             provider.initialize();
             return provider;
         }
-    }
-
-    @Override
-    public void onDisable() {
-        if (periodicTask != null) periodicTask.cancel();
-        if (storage != null) {
-            try { storage.close(); } catch (Exception ignored) { }
-        }
-        ServerDoctorProvider.unregister();
-
-        if (restApiServer != null) restApiServer.stop();
-        getLogger().info("ServerDoctor deaktiviert.");
     }
 }
