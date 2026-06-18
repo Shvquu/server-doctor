@@ -4,22 +4,28 @@ import com.serverdoctor.api.ServerDoctorApi;
 import com.serverdoctor.api.ServerDoctorProvider;
 import com.serverdoctor.api.event.AnalysisFinishedEvent;
 import com.serverdoctor.bungee.platform.BungeeServerPlatform;
+import com.serverdoctor.bungee.service.BungeeServiceSettings;
 import com.serverdoctor.bungee.storage.BungeeStorageSettings;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.platform.SchedulerAdapter;
+import com.serverdoctor.rest.RestApiServer;
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
+import com.serverdoctor.webhook.WebhookDispatcher;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.Plugin;
+import net.md_5.bungee.config.Configuration;
+import net.md_5.bungee.config.ConfigurationProvider;
+import net.md_5.bungee.config.YamlConfiguration;
 
-import java.io.File;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Map;
 
 public final class ServerDoctorBungeePlugin extends Plugin {
 
@@ -30,12 +36,17 @@ public final class ServerDoctorBungeePlugin extends Plugin {
     private Command command;
     private SchedulerAdapter.Cancellable periodicTask;
 
+    private RestApiServer restApiServer;
+    private WebhookDispatcher webhooks;
+
     @Override
     public void onEnable() {
         this.platform = new BungeeServerPlatform(getProxy(), getLogger(), this);
         this.core = ServerDoctorCore.bootstrap(this.platform);
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
+
+        saveDefaultConfig();
 
         this.messages = loadMessages();
         this.storage = openStorage();
@@ -55,6 +66,22 @@ public final class ServerDoctorBungeePlugin extends Plugin {
 
         getLogger().info("ServerDoctorBungeePlugin has been enabled");
 
+        try {
+            this.restApiServer = new RestApiServer(api, BungeeServiceSettings.restApi(getConfig()),
+                    getDescription().getVersion(), msg -> getLogger().info(msg));
+            restApiServer.start();
+        } catch (Exception e) {
+            getLogger().warning("Rest-API-Server konnte nicht gestartet werden: " + e.getMessage());
+        }
+        try {
+            this.webhooks = new WebhookDispatcher(BungeeServiceSettings.webhooks(getConfig()),
+                    api.events(), "BungeeCord " + platform.serverInfo().version(), msg -> getLogger().warning(msg));
+            webhooks.start();
+            getLogger().info("Webhook-Server aktiviert");
+        } catch (Exception ex) {
+            getLogger().warning("Webhook-Server konnte nicht gestartet werden: " + ex.getMessage());
+        }
+
         checkForUpdate();
     }
 
@@ -68,6 +95,9 @@ public final class ServerDoctorBungeePlugin extends Plugin {
             try { storage.close(); } catch (Exception ex) { getLogger().warning("Failed to close storage \n" + ex.getMessage()); }
         }
         ServerDoctorProvider.unregister();
+
+        if (restApiServer != null) restApiServer.stop();
+        getLogger().info("Plugin disabled");
     }
 
     private MessageStore loadMessages() {
@@ -144,6 +174,15 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         });
     }
 
+    private Configuration getConfig() {
+        try {
+            return ConfigurationProvider.getProvider(YamlConfiguration.class).load(new File(getDataFolder(), "config.yml"));
+        } catch (IOException exception) {
+            getLogger().warning("Failed to load config.yml: " + exception.getMessage());
+            return null;
+        }
+    }
+
     /** Make the plugin inert: cancel the scan, unregister the command, close storage. */
     private void deactivate() {
         if (periodicTask != null) {
@@ -159,5 +198,28 @@ public final class ServerDoctorBungeePlugin extends Plugin {
             storage = null;
         }
         ServerDoctorProvider.unregister();
+    }
+
+    private void saveDefaultConfig() {
+        if (!getDataFolder().exists()) {
+            getDataFolder().mkdirs();
+        }
+
+        File file = new File(getDataFolder(), "config.yml");
+        if (file .exists()) return;
+
+        try (InputStream in = getResourceAsStream("config.yml");
+             OutputStream out = new FileOutputStream(file)) {
+            if (in == null) {
+                throw new IllegalStateException("config.yml not found");
+            }
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = in.read(buffer)) > 0) {
+                out.write(buffer, 0, length);
+            }
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to save config.yml: " + ex.getMessage());
+        }
     }
 }
