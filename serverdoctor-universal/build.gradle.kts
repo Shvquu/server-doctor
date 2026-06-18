@@ -6,6 +6,7 @@ dependencies {
     // Beide Plattform-Module; ihre Plattform-APIs sind compileOnly und werden NICHT gebündelt.
     implementation(project(":serverdoctor-paper"))
     implementation(project(":serverdoctor-velocity"))
+    implementation(project(":serverdoctor-bungeecord"))
     // core/storage/api/common + sqlite-jdbc kommen transitiv und werden gebündelt.
 }
 
