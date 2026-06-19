@@ -8,6 +8,8 @@ import com.serverdoctor.bungee.service.BungeeServiceSettings;
 import com.serverdoctor.bungee.storage.BungeeStorageSettings;
 import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
+import com.serverdoctor.core.compat.CompatibilityMetadataSource;
+import com.serverdoctor.core.compat.CompatibilityMetadataSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.update.UpdateChecker;
@@ -48,8 +50,9 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         // config.yml now exists -> parse it once for services + advisory
         Map<String, Object> cfg = loadConfig();
         AdvisorySource advisories = buildAdvisorySource(cfg);
+        CompatibilityMetadataSource compat = buildCompatibilitySource(cfg);
 
-        this.core = ServerDoctorCore.bootstrap(platform, advisories);
+        this.core = ServerDoctorCore.bootstrap(platform, advisories, compat);
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
 
@@ -108,6 +111,20 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         return a.enabled()
                 ? AdvisorySources.remote(a.feedUrl(), a.refreshMinutes(), msg -> getLogger().warning(msg))
                 : AdvisorySources.disabled();
+    }
+
+    @SuppressWarnings("unchecked")
+    private CompatibilityMetadataSource buildCompatibilitySource(Map<String, Object> root) {
+        Object c = root.get("compatibility");
+        Map<String,Object> compat = c instanceof Map ? (Map<String,Object>) c : Map.of();
+        Object m = compat.get("metadata");
+        Map<String,Object> md = m instanceof Map ? (Map<String,Object>) m : Map.of();
+        boolean enabled = Boolean.parseBoolean(String.valueOf(md.getOrDefault("enabled", false)));
+        if (!enabled) return CompatibilityMetadataSources.disabled();
+        long refresh;
+        try { refresh = Long.parseLong(String.valueOf(md.getOrDefault("refresh-minutes", 1440))); }
+        catch (Exception e) { refresh = 1440L; }
+        return CompatibilityMetadataSources.remote(String.valueOf(md.getOrDefault("feed-url", "")), refresh, msg -> getLogger().warning(msg));
     }
 
     private MessageStore loadMessages() {

@@ -4,9 +4,12 @@ import com.serverdoctor.api.ServerDoctorApi;
 import com.serverdoctor.api.event.EventBus;
 import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.NoopAdvisorySource;
+import com.serverdoctor.core.compat.CompatibilityMetadataSource;
+import com.serverdoctor.core.compat.NoopCompatibilityMetadataSource;
 import com.serverdoctor.core.conflict.ConflictDatabase;
 import com.serverdoctor.core.event.EventBusImpl;
 import com.serverdoctor.core.recommendation.RecommendationEngine;
+import com.serverdoctor.core.scanner.CompatibilityScanner;
 import com.serverdoctor.core.scanner.ConflictScanner;
 import com.serverdoctor.core.scanner.DependencyScanner;
 import com.serverdoctor.core.scanner.PerformanceScanner;
@@ -33,13 +36,24 @@ public final class ServerDoctorCore {
         this.conflictDatabase = db;
     }
 
-    /** Bootstrap without an advisory feed (backward-compatible). */
+    /** Bootstrap with no optional sources (backward-compatible). */
     public static ServerDoctorCore bootstrap(ServerPlatform platform) {
-        return bootstrap(platform, NoopAdvisorySource.INSTANCE);
+        return bootstrap(platform, NoopAdvisorySource.INSTANCE, NoopCompatibilityMetadataSource.INSTANCE);
     }
 
-    /** Bootstrap with a security advisory source (use {@code AdvisorySources} to build one). */
+    /** Bootstrap with a security advisory source. */
     public static ServerDoctorCore bootstrap(ServerPlatform platform, AdvisorySource advisorySource) {
+        return bootstrap(platform, advisorySource, NoopCompatibilityMetadataSource.INSTANCE);
+    }
+
+    /** Bootstrap with both optional sources (use the {@code *Sources} factories to build them). */
+    public static ServerDoctorCore bootstrap(ServerPlatform platform,
+                                             AdvisorySource advisorySource,
+                                             CompatibilityMetadataSource compatibilitySource) {
+        AdvisorySource advisory = advisorySource == null ? NoopAdvisorySource.INSTANCE : advisorySource;
+        CompatibilityMetadataSource compat =
+                compatibilitySource == null ? NoopCompatibilityMetadataSource.INSTANCE : compatibilitySource;
+
         EventBus eventBus = new EventBusImpl(platform.logger());
         ScannerRegistry registry = new ScannerRegistry();
         ConflictDatabase conflictDatabase = ConflictDatabase.withDefaults();
@@ -48,8 +62,8 @@ public final class ServerDoctorCore {
         registry.register(new DependencyScanner());
         registry.register(new ConflictScanner(conflictDatabase));
         registry.register(new PerformanceScanner());
-        registry.register(new SecurityScanner(
-                advisorySource == null ? NoopAdvisorySource.INSTANCE : advisorySource));
+        registry.register(new SecurityScanner(advisory));
+        registry.register(new CompatibilityScanner(compat));
 
         RecommendationEngine recommendations = new RecommendationEngine();
         AnalysisEngine engine = new AnalysisEngine(platform, registry, recommendations, eventBus);

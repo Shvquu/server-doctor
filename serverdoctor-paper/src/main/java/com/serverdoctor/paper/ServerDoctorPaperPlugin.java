@@ -7,6 +7,8 @@ import com.serverdoctor.api.event.PerformanceThresholdReachedEvent;
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
+import com.serverdoctor.core.compat.CompatibilityMetadataSource;
+import com.serverdoctor.core.compat.CompatibilityMetadataSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.update.UpdateChecker;
@@ -52,7 +54,8 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
 
         // Advisory source from config (off by default) -> passed into bootstrap.
         AdvisorySource advisories = buildAdvisorySource();
-        this.core = ServerDoctorCore.bootstrap(platform, advisories);
+        CompatibilityMetadataSource compat = buildCompatibilitySource();
+        this.core = ServerDoctorCore.bootstrap(platform, advisories, compat);
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
 
@@ -145,6 +148,16 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
                 adv.getString("feed-url", ""),
                 adv.getLong("refresh-minutes", 360L),
                 msg -> getLogger().warning(msg));
+    }
+
+    private CompatibilityMetadataSource buildCompatibilitySource() {
+        ConfigurationSection compat = getConfig().getConfigurationSection("compatibility");
+        ConfigurationSection cm = compat == null ? null : compat.getConfigurationSection("metadata");
+        return (cm != null && cm.getBoolean("enabled", false))
+                ? CompatibilityMetadataSources.remote(cm.getString("feed-url", ""),
+                cm.getLong("refresh-minutes", 1440L),
+                msg -> getLogger().warning(msg))
+                : CompatibilityMetadataSources.disabled();
     }
 
     private MessageStore loadMessages() {
