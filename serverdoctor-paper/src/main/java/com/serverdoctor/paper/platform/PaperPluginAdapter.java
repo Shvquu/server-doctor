@@ -23,7 +23,8 @@ public final class PaperPluginAdapter implements PluginAdapter {
                     d.getAuthors(),
                     d.getDepend(),
                     d.getSoftDepend(),
-                    plugin.isEnabled()));
+                    plugin.isEnabled(),
+                    d.getAPIVersion()));      // api-version from plugin.yml (null if not set)
         }
         return out;
     }

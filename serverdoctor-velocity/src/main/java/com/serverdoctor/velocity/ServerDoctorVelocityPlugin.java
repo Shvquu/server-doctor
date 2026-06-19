@@ -6,8 +6,12 @@ import com.serverdoctor.api.ServerDoctorProvider;
 import com.serverdoctor.api.event.AnalysisFinishedEvent;
 import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
+import com.serverdoctor.core.compat.CompatibilityMetadataSource;
+import com.serverdoctor.core.compat.CompatibilityMetadataSources;
+import com.serverdoctor.core.engine.ScannerSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.core.regression.PerformanceHistory;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.platform.SchedulerAdapter;
@@ -37,7 +41,7 @@ import java.util.Map;
 @Plugin(
         id = "serverdoctor",
         name = "ServerDoctor",
-        version = "0.9.0",
+        version = "0.9.2",
         description = "Read-only analysis, diagnostics and monitoring for Minecraft networks.",
         authors = {"LittleSophyy", "zNixFNA", "DeltaNimrod"}
 )
@@ -70,8 +74,15 @@ public final class ServerDoctorVelocityPlugin {
         // config.yml now exists -> parse once for services + advisory
         Map<String, Object> cfg = loadConfig();
         AdvisorySource advisories = advisoryFrom(cfg);
+        CompatibilityMetadataSource compat = buildCompatibilitySource(cfg);
+        PerformanceHistory history = limit -> storage.performance().recent(limit);
+        ScannerSources sources = ScannerSources.builder()
+                .advisory(advisories)
+                .compatibility(compat)
+                .history(history)
+                .build();
 
-        this.core = ServerDoctorCore.bootstrap(platform, advisories);
+        this.core = ServerDoctorCore.bootstrap(platform, sources);
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
 
@@ -138,6 +149,20 @@ public final class ServerDoctorVelocityPlugin {
         try { refresh = Long.parseLong(String.valueOf(adv.getOrDefault("refresh-minutes", 360))); }
         catch (Exception e) { refresh = 360L; }
         return AdvisorySources.remote(String.valueOf(adv.getOrDefault("feed-url", "")), refresh, logger::warn);
+    }
+
+    @SuppressWarnings("unchecked")
+    private CompatibilityMetadataSource buildCompatibilitySource(Map<String, Object> root) {
+        Object c = root.get("compatibility");
+        Map<String,Object> compat = c instanceof Map ? (Map<String,Object>) c : Map.of();
+        Object m = compat.get("metadata");
+        Map<String,Object> md = m instanceof Map ? (Map<String,Object>) m : Map.of();
+        boolean enabled = Boolean.parseBoolean(String.valueOf(md.getOrDefault("enabled", false)));
+        if (!enabled) return CompatibilityMetadataSources.disabled();
+        long refresh;
+        try { refresh = Long.parseLong(String.valueOf(md.getOrDefault("refresh-minutes", 1440))); }
+        catch (Exception e) { refresh = 1440L; }
+        return CompatibilityMetadataSources.remote(String.valueOf(md.getOrDefault("feed-url", "")), refresh, logger::warn);
     }
 
     private MessageStore loadMessages() {
