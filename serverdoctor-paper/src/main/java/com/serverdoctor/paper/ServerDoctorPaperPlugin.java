@@ -9,8 +9,10 @@ import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
 import com.serverdoctor.core.compat.CompatibilityMetadataSource;
 import com.serverdoctor.core.compat.CompatibilityMetadataSources;
+import com.serverdoctor.core.engine.ScannerSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.core.regression.PerformanceHistory;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.paper.command.ServerDoctorCommand;
@@ -55,12 +57,21 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         // Advisory source from config (off by default) -> passed into bootstrap.
         AdvisorySource advisories = buildAdvisorySource();
         CompatibilityMetadataSource compat = buildCompatibilitySource();
-        this.core = ServerDoctorCore.bootstrap(platform, advisories, compat);
-        ServerDoctorApi api = core.api();
-        ServerDoctorProvider.register(api);
 
         this.messageStore = loadMessages();
         this.storage = openStorage();
+
+        PerformanceHistory history = limit -> storage.performance().recent(limit);
+
+        ScannerSources sources = ScannerSources.builder()
+                .advisory(advisories)
+                .compatibility(compat)
+                .history(history)
+                .build();
+
+        this.core = ServerDoctorCore.bootstrap(platform, sources);
+        ServerDoctorApi api = core.api();
+        ServerDoctorProvider.register(api);
 
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
             try {

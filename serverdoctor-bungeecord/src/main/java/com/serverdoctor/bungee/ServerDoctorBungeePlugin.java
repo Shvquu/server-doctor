@@ -10,8 +10,10 @@ import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
 import com.serverdoctor.core.compat.CompatibilityMetadataSource;
 import com.serverdoctor.core.compat.CompatibilityMetadataSources;
+import com.serverdoctor.core.engine.ScannerSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.core.regression.PerformanceHistory;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.platform.SchedulerAdapter;
@@ -51,8 +53,14 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         Map<String, Object> cfg = loadConfig();
         AdvisorySource advisories = buildAdvisorySource(cfg);
         CompatibilityMetadataSource compat = buildCompatibilitySource(cfg);
+        PerformanceHistory history = limit -> storage.performance().recent(limit);
+        ScannerSources sources = ScannerSources.builder()
+                .advisory(advisories)
+                .compatibility(compat)
+                .history(history)
+                .build();
 
-        this.core = ServerDoctorCore.bootstrap(platform, advisories, compat);
+        this.core = ServerDoctorCore.bootstrap(platform, sources);
         ServerDoctorApi api = core.api();
         ServerDoctorProvider.register(api);
 
