@@ -9,6 +9,7 @@ import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
 import com.serverdoctor.core.compat.CompatibilityMetadataSource;
 import com.serverdoctor.core.compat.CompatibilityMetadataSources;
+import com.serverdoctor.core.config.FilesystemConfigSource;
 import com.serverdoctor.core.engine.ScannerSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
@@ -67,6 +68,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
+                .config(new FilesystemConfigSource())
                 .build();
 
         this.core = ServerDoctorCore.bootstrap(platform, sources);

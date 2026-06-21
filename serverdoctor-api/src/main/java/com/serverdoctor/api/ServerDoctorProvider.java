@@ -1,5 +1,7 @@
 package com.serverdoctor.api;
 
+import com.serverdoctor.api.exception.ApiNotInitializedException;
+
 /** Statischer Service-Locator. Wird beim Plugin-Start gesetzt. */
 public final class ServerDoctorProvider {
 
@@ -10,7 +12,7 @@ public final class ServerDoctorProvider {
     public static ServerDoctorApi get() {
         ServerDoctorApi api = instance;
         if (api == null) {
-            throw new IllegalStateException("ServerDoctor ist noch nicht initialisiert.");
+            throw new ApiNotInitializedException("ServerDoctor ist noch nicht initialisiert.");
         }
         return api;
     }

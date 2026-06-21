@@ -7,7 +7,14 @@ import com.serverdoctor.core.compat.CompatibilityMetadataSource;
 import com.serverdoctor.core.conflict.ConflictDatabase;
 import com.serverdoctor.core.event.EventBusImpl;
 import com.serverdoctor.core.recommendation.RecommendationEngine;
-import com.serverdoctor.core.scanner.*;
+import com.serverdoctor.core.scanner.CompatibilityScanner;
+import com.serverdoctor.core.scanner.ConfigurationScanner;
+import com.serverdoctor.core.scanner.ConflictScanner;
+import com.serverdoctor.core.scanner.DependencyScanner;
+import com.serverdoctor.core.scanner.PerformanceScanner;
+import com.serverdoctor.core.scanner.PluginScanner;
+import com.serverdoctor.core.scanner.RegressionScanner;
+import com.serverdoctor.core.scanner.SecurityScanner;
 import com.serverdoctor.platform.ServerPlatform;
 
 /**
@@ -29,19 +36,16 @@ public final class ServerDoctorCore {
         this.conflictDatabase = db;
     }
 
-    @Deprecated
     /** Bootstrap with no optional sources (backward-compatible). */
     public static ServerDoctorCore bootstrap(ServerPlatform platform) {
         return bootstrap(platform, ScannerSources.none());
     }
 
-    @Deprecated
     /** Bootstrap with only a security advisory source (backward-compatible). */
     public static ServerDoctorCore bootstrap(ServerPlatform platform, AdvisorySource advisorySource) {
         return bootstrap(platform, ScannerSources.builder().advisory(advisorySource).build());
     }
 
-    @Deprecated
     /** Bootstrap with advisory + compatibility sources (backward-compatible). */
     public static ServerDoctorCore bootstrap(ServerPlatform platform,
                                              AdvisorySource advisorySource,
@@ -65,6 +69,7 @@ public final class ServerDoctorCore {
         registry.register(new SecurityScanner(s.advisory()));
         registry.register(new CompatibilityScanner(s.compatibility()));
         registry.register(new RegressionScanner(s.history()));
+        registry.register(new ConfigurationScanner(s.config()));
 
         RecommendationEngine recommendations = new RecommendationEngine();
         AnalysisEngine engine = new AnalysisEngine(platform, registry, recommendations, eventBus);

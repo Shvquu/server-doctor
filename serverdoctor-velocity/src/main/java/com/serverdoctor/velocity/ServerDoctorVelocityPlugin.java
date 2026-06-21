@@ -8,6 +8,7 @@ import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
 import com.serverdoctor.core.compat.CompatibilityMetadataSource;
 import com.serverdoctor.core.compat.CompatibilityMetadataSources;
+import com.serverdoctor.core.config.FilesystemConfigSource;
 import com.serverdoctor.core.engine.ScannerSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
@@ -41,7 +42,7 @@ import java.util.Map;
 @Plugin(
         id = "serverdoctor",
         name = "ServerDoctor",
-        version = "0.9.2",
+        version = "1.0.0",
         description = "Read-only analysis, diagnostics and monitoring for Minecraft networks.",
         authors = {"LittleSophyy", "zNixFNA", "DeltaNimrod"}
 )
@@ -80,6 +81,7 @@ public final class ServerDoctorVelocityPlugin {
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
+                .config(new FilesystemConfigSource())
                 .build();
 
         this.core = ServerDoctorCore.bootstrap(platform, sources);

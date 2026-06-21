@@ -1,8 +1,10 @@
 package com.serverdoctor.velocity.storage;
+import com.serverdoctor.common.exception.ConfigurationException;
 
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageType;
 import org.yaml.snakeyaml.Yaml;
+
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -87,7 +89,7 @@ public final class VelocityStorageSettings {
                 yield new StorageConfig(StorageType.MONGODB, mongoUri(c), null, null);
             }
 
-            default -> throw new IllegalArgumentException("Unbekannter storage.type: " + typeRaw);
+            default -> throw new ConfigurationException("Unbekannter storage.type: " + typeRaw);
         };
     }
 
@@ -129,7 +131,7 @@ public final class VelocityStorageSettings {
     private static Map<String, Object> require(Map<String, Object> parent, String key) {
         Object v = parent == null ? null : parent.get(key);
         if (!(v instanceof Map)) {
-            throw new IllegalStateException("Fehlende Sektion 'storage." + key + "' in config.yml");
+            throw new ConfigurationException("Fehlende Sektion 'storage." + key + "' in config.yml");
         }
         return cast(v);
     }

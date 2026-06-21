@@ -1,4 +1,5 @@
 package com.serverdoctor.paper.storage;
+import com.serverdoctor.common.exception.ConfigurationException;
 
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageType;
@@ -67,7 +68,7 @@ public final class StorageSettings {
                 yield new StorageConfig(StorageType.MONGODB, mongoUri(c), null, null);
             }
 
-            default -> throw new IllegalArgumentException("Unbekannter storage.type: " + typeRaw);
+            default -> throw new ConfigurationException("Unbekannter storage.type: " + typeRaw);
         };
     }
 
@@ -102,7 +103,7 @@ public final class StorageSettings {
     private static ConfigurationSection require(ConfigurationSection parent, String key) {
         ConfigurationSection c = parent.getConfigurationSection(key);
         if (c == null) {
-            throw new IllegalStateException("Fehlende Sektion 'storage." + key + "' in config.yml");
+            throw new ConfigurationException("Fehlende Sektion 'storage." + key + "' in config.yml");
         }
         return c;
     }

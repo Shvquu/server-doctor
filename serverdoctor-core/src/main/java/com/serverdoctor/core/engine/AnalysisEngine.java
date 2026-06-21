@@ -4,12 +4,12 @@ import com.serverdoctor.api.event.AnalysisFinishedEvent;
 import com.serverdoctor.api.event.EventBus;
 import com.serverdoctor.api.event.PluginConflictDetectedEvent;
 import com.serverdoctor.api.event.SecurityRiskDetectedEvent;
+import com.serverdoctor.api.exception.AnalysisException;
 import com.serverdoctor.api.module.AnalysisModule;
 import com.serverdoctor.api.module.AnalysisResult;
 import com.serverdoctor.api.module.DiagnosticReport;
 import com.serverdoctor.api.module.ServerContext;
 import com.serverdoctor.common.model.PerformanceSnapshot;
-import com.serverdoctor.common.model.MemoryStats;
 import com.serverdoctor.common.model.Recommendation;
 import com.serverdoctor.core.recommendation.RecommendationEngine;
 import com.serverdoctor.platform.MetricsAdapter;
@@ -53,7 +53,8 @@ public final class AnalysisEngine {
                 result.conflicts().forEach(c -> eventBus.publish(new PluginConflictDetectedEvent(c)));
                 result.securityRisks().forEach(r -> eventBus.publish(new SecurityRiskDetectedEvent(r)));
             } catch (Exception ex) {
-                platform.logger().error("Scanner '" + module.id() + "' ist fehlgeschlagen", ex);
+                platform.logger().error("Analyse-Modul fehlgeschlagen",
+                        new AnalysisException("Scanner '" + module.id() + "' ist fehlgeschlagen", ex));
             }
         }
 

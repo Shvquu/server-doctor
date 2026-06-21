@@ -1,4 +1,5 @@
 package com.serverdoctor.bungee.service;
+import com.serverdoctor.common.exception.ConfigurationException;
 
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.rest.RestApiConfig;
@@ -61,7 +62,7 @@ public final class BungeeServiceSettings {
                             WebhookConfig.Type.from(String.valueOf(m.get("type"))),
                             url.toString(),
                             name == null ? null : name.toString()));
-                } catch (IllegalArgumentException ignored) {
+                } catch (ConfigurationException ignored) {
                     // unknown webhook type -> skip
                 }
             }

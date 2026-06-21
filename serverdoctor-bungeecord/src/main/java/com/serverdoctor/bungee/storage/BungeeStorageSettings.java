@@ -1,4 +1,4 @@
-package com.serverdoctor.bungee.storage;
+import com.serverdoctor.common.exception.ConfigurationException;
 
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageType;
@@ -24,7 +24,7 @@ public final class BungeeStorageSettings {
     /** Copies the bundled config.yml into the data folder if absent, then parses + builds. */
     public static StorageConfig load(File dataFolder, InputStream bundledDefault) throws Exception {
         if (!dataFolder.exists() && !dataFolder.mkdirs()) {
-            throw new IllegalStateException("Could not create data folder: " + dataFolder);
+            throw new ConfigurationException("Could not create data folder: " + dataFolder);
         }
         File file = new File(dataFolder, "config.yml");
         if (!file.exists() && bundledDefault != null) {
@@ -78,7 +78,7 @@ public final class BungeeStorageSettings {
                 yield new StorageConfig(StorageType.MONGODB, mongoUri(c), null, null);
             }
 
-            default -> throw new IllegalArgumentException("Unknown storage.type: " + type);
+            default -> throw new ConfigurationException("Unknown storage.type: " + type);
         };
     }
 
@@ -114,7 +114,7 @@ public final class BungeeStorageSettings {
 
     private static Map<String, Object> require(Map<String, Object> parent, String key) {
         Object v = parent == null ? null : parent.get(key);
-        if (!(v instanceof Map)) throw new IllegalStateException("Missing 'storage." + key + "' in config.yml");
+        if (!(v instanceof Map)) throw new ConfigurationException("Missing 'storage." + key + "' in config.yml");
         return cast(v);
     }
 
