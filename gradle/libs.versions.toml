@@ -10,7 +10,7 @@ postgresql = "42.7.4"
 mariadb    = "3.4.1"
 mongodb    = "5.8.0"
 snakeyaml = "2.3"
-bungeecord = "1.21-R0.1"
+bungeecord = "1.21-R0.4"
 
 [libraries]
 paper-api       = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
