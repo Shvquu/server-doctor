@@ -9,7 +9,7 @@ hikari     = "7.1.0"
 postgresql = "42.7.4"
 mariadb    = "3.5.9"
 mongodb    = "5.8.0"
-snakeyaml = "2.3"
+snakeyaml = "2.6"
 bungeecord = "1.21-R0.4"
 
 [libraries]
