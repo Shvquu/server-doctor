@@ -1,4 +1,5 @@
 package com.serverdoctor.paper.service;
+import com.serverdoctor.common.exception.ConfigurationException;
 
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.rest.RestApiConfig;
@@ -26,8 +27,7 @@ public final class PaperServiceSettings {
                 s.getBoolean("enabled", false),
                 s.getString("host", "127.0.0.1"),
                 s.getInt("port", 9173),
-                token.isBlank() ? null : token
-        );
+                token == null || token.isBlank() ? null : token);
     }
 
     public static WebhookConfig webhooks(FileConfiguration cfg) {
@@ -45,7 +45,8 @@ public final class PaperServiceSettings {
                         WebhookConfig.Type.from(String.valueOf(m.get("type"))),
                         url.toString(),
                         name == null ? null : name.toString()));
-            } catch (IllegalArgumentException ignored) {
+            } catch (ConfigurationException ignored) {
+                // unknown webhook type -> skip this target
             }
         }
         return new WebhookConfig(s.getBoolean("enabled", false), min, targets);
