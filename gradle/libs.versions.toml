@@ -1,5 +1,5 @@
 [versions]
-paper          = "1.21.4-R0.1-SNAPSHOT"
+paper          = "26.1.2.build.72-stable"
 velocity       = "4.0.0-SNAPSHOT"
 placeholderapi = "2.11.6"
 junit          = "6.1.0"
