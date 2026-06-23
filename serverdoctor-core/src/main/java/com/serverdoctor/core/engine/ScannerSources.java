@@ -6,6 +6,8 @@ import com.serverdoctor.core.compat.CompatibilityMetadataSource;
 import com.serverdoctor.core.compat.NoopCompatibilityMetadataSource;
 import com.serverdoctor.core.config.ConfigSource;
 import com.serverdoctor.core.config.NoopConfigSource;
+import com.serverdoctor.core.network.NetworkView;
+import com.serverdoctor.core.network.NoopNetworkView;
 import com.serverdoctor.core.regression.NoopPerformanceHistory;
 import com.serverdoctor.core.regression.PerformanceHistory;
 
@@ -21,18 +23,21 @@ public final class ScannerSources {
     private final CompatibilityMetadataSource compatibility;
     private final PerformanceHistory history;
     private final ConfigSource config;
+    private final NetworkView network;
 
     private ScannerSources(Builder b) {
         this.advisory = b.advisory;
         this.compatibility = b.compatibility;
         this.history = b.history;
         this.config = b.config;
+        this.network = b.network;
     }
 
     public AdvisorySource advisory() { return advisory; }
     public CompatibilityMetadataSource compatibility() { return compatibility; }
     public PerformanceHistory history() { return history; }
     public ConfigSource config() { return config; }
+    public NetworkView network() { return network; }
 
     public static ScannerSources none() { return builder().build(); }
 
@@ -43,6 +48,7 @@ public final class ScannerSources {
         private CompatibilityMetadataSource compatibility = NoopCompatibilityMetadataSource.INSTANCE;
         private PerformanceHistory history = NoopPerformanceHistory.INSTANCE;
         private ConfigSource config = NoopConfigSource.INSTANCE;
+        private NetworkView network = NoopNetworkView.INSTANCE;
 
         public Builder advisory(AdvisorySource v) {
             this.advisory = v == null ? NoopAdvisorySource.INSTANCE : v; return this;
@@ -55,6 +61,9 @@ public final class ScannerSources {
         }
         public Builder config(ConfigSource v) {
             this.config = v == null ? NoopConfigSource.INSTANCE : v; return this;
+        }
+        public Builder network(NetworkView v) {
+            this.network = v == null ? NoopNetworkView.INSTANCE : v; return this;
         }
         public ScannerSources build() { return new ScannerSources(this); }
     }

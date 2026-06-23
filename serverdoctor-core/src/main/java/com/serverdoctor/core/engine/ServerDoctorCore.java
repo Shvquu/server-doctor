@@ -9,6 +9,9 @@ import com.serverdoctor.core.event.EventBusImpl;
 import com.serverdoctor.core.recommendation.RecommendationEngine;
 import com.serverdoctor.core.scanner.CompatibilityScanner;
 import com.serverdoctor.core.scanner.ConfigurationScanner;
+import com.serverdoctor.core.scanner.CrossNodeScanner;
+import com.serverdoctor.core.scanner.DiskScanner;
+import com.serverdoctor.core.scanner.RuntimeScanner;
 import com.serverdoctor.core.scanner.ConflictScanner;
 import com.serverdoctor.core.scanner.DependencyScanner;
 import com.serverdoctor.core.scanner.PerformanceScanner;
@@ -70,6 +73,9 @@ public final class ServerDoctorCore {
         registry.register(new CompatibilityScanner(s.compatibility()));
         registry.register(new RegressionScanner(s.history()));
         registry.register(new ConfigurationScanner(s.config()));
+        registry.register(new DiskScanner());
+        registry.register(new RuntimeScanner());
+        registry.register(new CrossNodeScanner(s.network()));
 
         RecommendationEngine recommendations = new RecommendationEngine();
         AnalysisEngine engine = new AnalysisEngine(platform, registry, recommendations, eventBus);
