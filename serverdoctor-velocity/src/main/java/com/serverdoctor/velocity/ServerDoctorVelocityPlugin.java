@@ -12,6 +12,7 @@ import com.serverdoctor.core.config.FilesystemConfigSource;
 import com.serverdoctor.core.engine.ScannerSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.core.network.NodeFingerprints;
 import com.serverdoctor.core.regression.PerformanceHistory;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
@@ -20,6 +21,7 @@ import com.serverdoctor.rest.RestApiServer;
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
+import com.serverdoctor.storage.repository.NodeRepository;
 import com.serverdoctor.velocity.platform.VelocityServerPlatform;
 import com.serverdoctor.velocity.service.VelocityServiceSettings;
 import com.serverdoctor.velocity.storage.VelocityStorageSettings;
@@ -76,12 +78,16 @@ public final class ServerDoctorVelocityPlugin {
         Map<String, Object> cfg = loadConfig();
         AdvisorySource advisories = advisoryFrom(cfg);
         CompatibilityMetadataSource compat = buildCompatibilitySource(cfg);
+        NodeRepository nodeRepo = storage.nodes();
+        String nodeName = resolveNodeName(cfg);
         PerformanceHistory history = limit -> storage.performance().recent(limit);
+
         ScannerSources sources = ScannerSources.builder()
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
                 .config(new FilesystemConfigSource())
+                .network(() -> nodeRepo.others(nodeName))
                 .build();
 
         this.core = ServerDoctorCore.bootstrap(platform, sources);
@@ -91,6 +97,7 @@ public final class ServerDoctorVelocityPlugin {
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
             try {
                 storage.saveReport(e.report());
+                nodeRepo.upsert(NodeFingerprints.of(platform, nodeName));
             } catch (Exception ex) {
                 logger.warn("Persistenz fehlgeschlagen: {}", ex.getMessage());
             }
@@ -235,7 +242,7 @@ public final class ServerDoctorVelocityPlugin {
     private String currentVersion() {
         return proxy.getPluginManager().fromInstance(this)
                 .flatMap(container -> container.getDescription().getVersion())
-                .orElse("0.9.0");
+                .orElse("1.0.0");
     }
 
     private StorageProvider openStorage() {
@@ -257,5 +264,17 @@ public final class ServerDoctorVelocityPlugin {
             provider.initialize();
             return provider;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String resolveNodeName(Map<String, Object> cfg) {
+        Object net = cfg.get("network");
+        Map<String, Object> network = net instanceof Map ? (Map<String, Object>) net : Map.of();
+        Object raw = network.get("node-name");
+        String configured = raw == null ? "" : String.valueOf(raw).trim();
+        if (!configured.isEmpty()) return configured;
+
+        // stabiler Fallback: Bind-Port des Proxys (eindeutig pro Velocity-Instanz)
+        return "velocity-" + proxy.getConfiguration().getQueryPort();
     }
 }
