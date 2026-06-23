@@ -22,6 +22,7 @@ import com.serverdoctor.rest.RestApiServer;
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
+import com.serverdoctor.storage.repository.NodeRepository;
 import com.serverdoctor.webhook.WebhookDispatcher;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -54,12 +55,15 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         Map<String, Object> cfg = loadConfig();
         AdvisorySource advisories = buildAdvisorySource(cfg);
         CompatibilityMetadataSource compat = buildCompatibilitySource(cfg);
+        NodeRepository nodeRepo = storage.nodes();
+        String nodeName = resolveNodeName(cfg);
         PerformanceHistory history = limit -> storage.performance().recent(limit);
         ScannerSources sources = ScannerSources.builder()
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
                 .config(new FilesystemConfigSource())
+                .network(() -> nodeRepo.others(nodeName))
                 .build();
 
         this.core = ServerDoctorCore.bootstrap(platform, sources);
@@ -224,5 +228,17 @@ public final class ServerDoctorBungeePlugin extends Plugin {
             storage = null;
         }
         ServerDoctorProvider.unregister();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String resolveNodeName(Map<String, Object> cfg) {
+        Object net = cfg.get("network");
+        Map<String, Object> network = net instanceof Map ? (Map<String, Object>) net : Map.of();
+        Object raw = network.get("node-name");
+        String configured = raw == null ? "" : String.valueOf(raw).trim();
+        if (!configured.isEmpty()) return configured;
+
+        // stabiler Fallback: Bind-Port des Proxys (eindeutig pro Velocity-Instanz)
+        return "bungeecord-" + getProxy().getConfig().getListeners().iterator().next().getQueryPort();
     }
 }

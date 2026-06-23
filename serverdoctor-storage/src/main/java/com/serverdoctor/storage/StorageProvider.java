@@ -1,11 +1,7 @@
 package com.serverdoctor.storage;
 
 import com.serverdoctor.api.module.DiagnosticReport;
-import com.serverdoctor.storage.repository.ConflictRepository;
-import com.serverdoctor.storage.repository.PerformanceRepository;
-import com.serverdoctor.storage.repository.PluginRepository;
-import com.serverdoctor.storage.repository.RecommendationRepository;
-import com.serverdoctor.storage.repository.SecurityRepository;
+import com.serverdoctor.storage.repository.*;
 
 import java.time.Instant;
 
@@ -19,6 +15,7 @@ public interface StorageProvider extends AutoCloseable {
     SecurityRepository security();
     RecommendationRepository recommendations();
     PluginRepository plugins();
+    NodeRepository nodes();
 
     /** Bequemer Einstieg: einen kompletten Report mit einem Aufruf persistieren. */
     default void saveReport(DiagnosticReport report) {

@@ -1,3 +1,5 @@
+package com.serverdoctor.bungee.storage;
+
 import com.serverdoctor.common.exception.ConfigurationException;
 
 import com.serverdoctor.storage.StorageConfig;
