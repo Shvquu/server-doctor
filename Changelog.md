@@ -4,6 +4,26 @@
 _Planned: BungeeCord adapter, an example integration plugin, and a real security advisory
 source._
 
+## [0.9.2](https://github.com/Shvquu/server-doctor/releases/tag/v0.9.2) - 2026-06-20
+
+### Added
+- Compatibility scanner: assesses each plugin (declared api-version vs. server MC version on
+  Paper/Folia, Folia support, enabled state) into a transparent 0–100 risk score. Optional
+  external metadata feed (`compatibility.metadata`, off by default) adds release age, a Folia
+  flag and known incompatibilities. Runs on all platforms.
+- Historical regression detection: compares the older vs. newer half of stored performance
+  snapshots to flag gradual TPS/MSPT/RAM regressions (slow decline, not just spikes). Uses only
+  already-persisted data via an injected `PerformanceHistory`. Runs on all platforms; RAM-only
+  on proxies.
+- `PluginInfo.apiVersion` (populated by the Paper adapter from plugin.yml).
+
+### Changed
+- `ServerDoctorCore.bootstrap` now takes a single `ScannerSources` object bundling the optional
+  advisory, compatibility and performance-history sources; the previous overloads are kept and
+  delegate to it.
+- `PluginInfo` gained a 7th component `apiVersion`; the prior 6-argument constructor is retained,
+  so existing adapters, tests and the REST serializer compile unchanged.
+
 ## [0.9.0 - b858d8d](https://github.com/Shvquu/server-doctor/releases/tag/v0.9.0) - 2026-06-18
 
 ### Added
@@ -138,7 +158,8 @@ _Initial runnable foundation._
   SDK in core/common/api/storage, the Clean Architecture dependency rule, and the read-only
   invariant of the platform adapters.
 
-[Unreleased]: https://github.com/Shvquu/server-doctor/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/Shvquu/server-doctor/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/Shvquu/server-doctor/releases/tag/v0.9.2
 [0.9.0 - b858d8d]: https://github.com/Shvquu/server-doctor/releases/tag/v0.9.0
 [0.8.1 - 0c07127]: https://github.com/Shvquu/server-doctor/releases/tag/0c07127
 [0.8.0 - c86119d]: https://github.com/Shvquu/server-doctor/releases/tag/v0.8.0
