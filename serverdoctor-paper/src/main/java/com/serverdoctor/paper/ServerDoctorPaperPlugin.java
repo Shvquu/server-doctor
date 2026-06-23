@@ -13,6 +13,7 @@ import com.serverdoctor.core.config.FilesystemConfigSource;
 import com.serverdoctor.core.engine.ScannerSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.core.network.NodeFingerprints;
 import com.serverdoctor.core.regression.PerformanceHistory;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
@@ -30,6 +31,7 @@ import com.serverdoctor.rest.RestApiServer;
 import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
+import com.serverdoctor.storage.repository.NodeRepository;
 import com.serverdoctor.webhook.WebhookDispatcher;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -63,12 +65,15 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         this.storage = openStorage();
 
         PerformanceHistory history = limit -> storage.performance().recent(limit);
+        NodeRepository nodeRepository = storage.nodes();
+        String nodeName = resolveNodeName(platform);
 
         ScannerSources sources = ScannerSources.builder()
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
                 .config(new FilesystemConfigSource())
+                .network(() -> nodeRepository.others(nodeName))
                 .build();
 
         this.core = ServerDoctorCore.bootstrap(platform, sources);
@@ -78,6 +83,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
             try {
                 storage.saveReport(e.report());
+                nodeRepository.upsert(NodeFingerprints.of(platform, nodeName));
             } catch (Exception ex) {
                 getLogger().warning("Persistenz fehlgeschlagen: " + ex.getMessage());
             }
@@ -247,5 +253,12 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             provider.initialize();
             return provider;
         }
+    }
+
+    private String resolveNodeName(PaperServerPlatform platform) {
+        String configured = getConfig().getString("network.node-name");
+        if (configured != null && !configured.isBlank()) return configured;
+        // stable fallback: platform + a value you control (server name, bind port, host)
+        return platform.name().toLowerCase(java.util.Locale.ROOT) + "-" /* e.g. bind port */;
     }
 }
