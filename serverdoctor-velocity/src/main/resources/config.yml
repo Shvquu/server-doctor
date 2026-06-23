@@ -20,6 +20,16 @@ compatibility:
     feed-url: ""
     refresh-minutes: 1440
 
+# --- Cross-node consistency (only useful with a SHARED database backend) ---
+# Each ServerDoctor instance writes its fingerprint (server/java/plugin versions) to the shared
+# DB; the cross-node scanner compares them. Give every node a unique, stable name.
+network:
+  # Unique per node. If blank, a name is derived from platform + a generated id on first start.
+  node-name: ""
+
+# Disk and Java-runtime checks need no configuration — they self-probe and run automatically.
+
+
 storage:
   # Aktives Backend. Eines von: memory | sqlite | postgresql | mariadb | mongodb
   type: sqlite
