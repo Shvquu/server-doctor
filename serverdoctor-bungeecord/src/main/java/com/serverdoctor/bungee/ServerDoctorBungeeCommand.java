@@ -8,6 +8,7 @@ import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.plugin.Command;
 
+import java.nio.file.Path;
 import java.util.Locale;
 
 /** /serverdoctor on BungeeCord - texts from messages.yml (color codes are stripped). */
@@ -16,12 +17,16 @@ public final class ServerDoctorBungeeCommand extends Command {
     private final ServerDoctorApi api;
     private final MessageStore msg;
     private final Runnable reloadHandler;
+    private final Path dataFolder;
+    private final String serverVersion;
 
-    public ServerDoctorBungeeCommand(ServerDoctorApi api, MessageStore msg, Runnable reloadHandler) {
+    public ServerDoctorBungeeCommand(ServerDoctorApi api, MessageStore msg, Runnable reloadHandler, Path dataFolder, String serverVersion) {
         super("serverdoctor", "serverdoctor.admin", "sd", "doctor");
         this.api = api;
         this.msg = msg;
         this.reloadHandler = reloadHandler;
+        this.dataFolder = dataFolder;
+        this.serverVersion = serverVersion;
     }
 
     @Override
@@ -73,9 +78,40 @@ public final class ServerDoctorBungeeCommand extends Command {
                 reloadHandler.run();
                 send(sender, msg.raw("command.reload.success"));
             }
+            case "export" -> {
+                var fmt = com.serverdoctor.core.report.ReportFormat.fromString(args.length > 1 ? args[1] : null);
+                var r = api.getLatestReport().orElseGet(api::runDiagnostics);
+                try {
+                    var file = new com.serverdoctor.core.report.ReportExporter()
+                            .write(r, fmt, dataFolder.resolve("exports"));
+                    send(sender, "Report exported: " + file);
+                } catch (java.io.IOException e) {
+                    send(sender, "Export failed: " + e.getMessage());
+                }
+            }
+            case "baseline" -> {
+                var store = new com.serverdoctor.core.baseline.BaselineStore(dataFolder.resolve("baseline.properties"));
+                String action = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "diff";
+                if (action.equals("pin")) {
+                    var r = api.getLatestReport().orElseGet(api::runDiagnostics);
+                    try {
+                        store.pin(com.serverdoctor.core.baseline.Baselines.from(r, serverVersion));
+                        send(sender, "Baseline pinned.");
+                    } catch (java.io.IOException e) {
+                        send(sender, "Could not pin baseline: " + e.getMessage());
+                    }
+                } else {
+                    store.load().ifPresentOrElse(base -> {
+                        var now = api.getLatestReport().orElseGet(api::runDiagnostics);
+                        send(sender, "Baseline diff:");
+                        new com.serverdoctor.core.baseline.BaselineComparator().compare(base, now)
+                                .forEach(line -> send(sender, "- " + line));
+                    }, () -> send(sender, "No baseline pinned yet — run /serverdoctor baseline pin first."));
+                }
+            }
             default -> {
                 send(sender, msg.raw("command.help.header"));
-                for (String k : new String[]{"scan", "report", "tps", "conflicts", "security", "recs"}) {
+                for (String k : new String[]{"scan", "report", "tps", "conflicts", "security", "recs", "export", "baseline"}) {
                     send(sender, msg.raw("command.help." + k));
                 }
             }
