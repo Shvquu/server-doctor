@@ -32,6 +32,8 @@ import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
 import com.serverdoctor.storage.repository.NodeRepository;
+import com.serverdoctor.webhook.HealthDigest;
+import com.serverdoctor.webhook.WebhookConfig;
 import com.serverdoctor.webhook.WebhookDispatcher;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -40,6 +42,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Map;
 
 /** Entry point on Paper/Folia. Wires core, storage, advisory, GUI, tasks, command, REST + webhooks. */
 public final class ServerDoctorPaperPlugin extends JavaPlugin {
@@ -66,14 +69,19 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
 
         PerformanceHistory history = limit -> storage.performance().recent(limit);
         NodeRepository nodeRepository = storage.nodes();
+        if (nodeRepository == null) {
+            getLogger().warning("storage.nodes() lieferte null (" + storage.getClass().getSimpleName()
+                    + ") - Cross-Node bleibt inaktiv. Prüft, ob euer StorageProvider 'nodes' in initialize() zuweist.");
+        }
         String nodeName = resolveNodeName(platform);
+        WebhookConfig webhookConfig = PaperServiceSettings.webhooks(getConfig());
 
         ScannerSources sources = ScannerSources.builder()
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
                 .config(new FilesystemConfigSource())
-                .network(() -> nodeRepository.others(nodeName))
+                .network(() -> nodeRepository == null ? java.util.List.of() : nodeRepository.others(nodeName))
                 .build();
 
         this.core = ServerDoctorCore.bootstrap(platform, sources);
@@ -83,7 +91,9 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
             try {
                 storage.saveReport(e.report());
-                nodeRepository.upsert(NodeFingerprints.of(platform, nodeName));
+                if (nodeRepository != null) {
+                    nodeRepository.upsert(NodeFingerprints.of(platform, nodeName));
+                }
             } catch (Exception ex) {
                 getLogger().warning("Persistenz fehlgeschlagen: " + ex.getMessage());
             }
@@ -96,7 +106,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             gui.register();
         }
 
-        ServerDoctorCommand command = new ServerDoctorCommand(api, storage, messageStore, this::reloadMessages, gui);
+        ServerDoctorCommand command = new ServerDoctorCommand(api, storage, messageStore, this::reloadMessages, gui, getDataFolder().toPath(), getServer().getVersion());
         var pluginCommand = getCommand("serverdoctor");
         if (pluginCommand != null) {
             pluginCommand.setExecutor(command);
@@ -125,8 +135,20 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             getLogger().warning("REST API konnte nicht starten: " + ex.getMessage());
         }
 
+        // --- Health-Digest ---
+        boolean digestOn = getConfig().getBoolean("webhooks.digest.enabled", false);
+        long    minutes  = getConfig().getLong("webhooks.digest.interval-minutes", 1440);
+
+        if (webhookConfig.enabled() && digestOn) {
+            HealthDigest digest = new HealthDigest(webhookConfig, "", getLogger()::warning);
+            long periodTicks = Math.max(1, minutes) * 60L * 20L;
+            platform.scheduler().runRepeatingAsync(
+                    () -> api.getLatestReport().ifPresent(digest::send),
+                    periodTicks, periodTicks);
+        }
+
         // Webhooks (no-op if disabled / no valid targets). Subscribes to the event bus itself.
-        new WebhookDispatcher(PaperServiceSettings.webhooks(getConfig()), api.events(),
+        new WebhookDispatcher(webhookConfig, api.events(),
                 "Paper", msg -> getLogger().warning(msg)).start();
 
         // Configurable periodic scan (replaces the old hard-coded 5-minute task).
@@ -258,7 +280,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
     private String resolveNodeName(PaperServerPlatform platform) {
         String configured = getConfig().getString("network.node-name");
         if (configured != null && !configured.isBlank()) return configured;
-        // stable fallback: platform + a value you control (server name, bind port, host)
-        return platform.name().toLowerCase(java.util.Locale.ROOT) + "-" /* e.g. bind port */;
+        // stable, unique fallback: platform + the server's bind port
+        return platform.name().toLowerCase(java.util.Locale.ROOT) + "-" + getServer().getPort();
     }
 }
