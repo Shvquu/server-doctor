@@ -1,12 +1,10 @@
 package com.serverdoctor.storage.impl.sqlite;
 
+import com.serverdoctor.api.module.DiagnosticReport;
 import com.serverdoctor.storage.StorageException;
 import com.serverdoctor.storage.StorageProvider;
-import com.serverdoctor.storage.repository.ConflictRepository;
-import com.serverdoctor.storage.repository.PerformanceRepository;
-import com.serverdoctor.storage.repository.PluginRepository;
-import com.serverdoctor.storage.repository.RecommendationRepository;
-import com.serverdoctor.storage.repository.SecurityRepository;
+import com.serverdoctor.storage.node.InMemoryNodeRepository;
+import com.serverdoctor.storage.repository.*;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -26,6 +24,7 @@ public final class SqliteStorageProvider implements StorageProvider {
     private SecurityRepository security;
     private RecommendationRepository recommendations;
     private PluginRepository plugins;
+    private final NodeRepository nodes = new InMemoryNodeRepository();
 
     public SqliteStorageProvider(String file) {
         this.file = file == null ? "serverdoctor.db" : file;
@@ -64,6 +63,7 @@ public final class SqliteStorageProvider implements StorageProvider {
     @Override public SecurityRepository security() { requireInit(); return security; }
     @Override public RecommendationRepository recommendations() { requireInit(); return recommendations; }
     @Override public PluginRepository plugins() { requireInit(); return plugins; }
+    @Override public NodeRepository nodes() { requireInit(); return nodes; }
 
     @Override
     public void close() {
@@ -75,5 +75,10 @@ public final class SqliteStorageProvider implements StorageProvider {
                 throw new StorageException("Konnte SQLite-Verbindung nicht schließen", e);
             }
         }
+    }
+
+    @Override
+    public void saveReport(DiagnosticReport report) {
+        StorageProvider.super.saveReport(report);
     }
 }
