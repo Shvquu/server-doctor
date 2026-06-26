@@ -8,7 +8,12 @@ import com.serverdoctor.common.model.PerformanceSnapshot;
 import com.serverdoctor.common.model.Recommendation;
 import com.serverdoctor.common.model.SecurityRisk;
 import com.serverdoctor.common.model.Severity;
+import com.serverdoctor.core.baseline.BaselineComparator;
+import com.serverdoctor.core.baseline.BaselineStore;
+import com.serverdoctor.core.baseline.Baselines;
 import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.core.report.ReportExporter;
+import com.serverdoctor.core.report.ReportFormat;
 import com.serverdoctor.paper.gui.MenuType;
 import com.serverdoctor.paper.gui.ServerDoctorGui;
 import com.serverdoctor.storage.StorageProvider;
@@ -20,6 +25,9 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jspecify.annotations.NonNull;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -33,13 +41,17 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
     private final MessageStore msg;
     private final Runnable reloadHandler;
     private final ServerDoctorGui gui;
+    private final Path dataFolder;
+    private final String serverVersion;
 
-    public ServerDoctorCommand(ServerDoctorApi api, StorageProvider storage, MessageStore msg, Runnable reloadHandler, ServerDoctorGui gui) {
+    public ServerDoctorCommand(ServerDoctorApi api, StorageProvider storage, MessageStore msg, Runnable reloadHandler, ServerDoctorGui gui, Path dataFolder, String serverVersion) {
         this.api = api;
         this.storage = storage;
         this.msg = msg;
         this.reloadHandler = reloadHandler;
         this.gui = gui;
+        this.dataFolder = dataFolder;
+        this.serverVersion = serverVersion;
     }
 
     @Override
@@ -58,6 +70,8 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
             case "reload"          -> reload(s);
             case "gui",
                  "menu"            -> openGui(s);
+            case "export"          -> export(s, args);
+            case "baseline"        -> baseline(s, args);
             default                -> help(s);
         }
         return true;
@@ -136,7 +150,7 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
 
     private void help(CommandSender s) {
         sendKey(s, false, "command.help.header");
-        for (String k : List.of("scan", "report", "tps", "conflicts", "security", "recs", "history")) {
+        for (String k : List.of("scan", "report", "tps", "conflicts", "security", "recs", "history", "baseline", "export")) {
             sendKey(s, false, "command.help." + k);
         }
     }
@@ -145,6 +159,38 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
         if (gui == null) { send(s, true, "&cThe GUI is disabled."); return; }
         if (!(s instanceof Player p)) { send(s, true, "&cThis command is only for players."); return; }
         gui.open(p, MenuType.MAIN);
+    }
+
+    private void export(CommandSender s, String[] args) {
+        ReportFormat fmt = ReportFormat.fromString(args.length > 1 ? args[1] : null);
+        DiagnosticReport r = api.getLatestReport().orElseGet(api::runDiagnostics);
+        try {
+            Path file = new ReportExporter().write(r, fmt, dataFolder.resolve("exports"));
+            send(s, true, "&aReport exported: &f" + file);
+        } catch (IOException e) {
+            send(s, true, "&cExport failed: " + e.getMessage());
+        }
+    }
+
+    private void baseline(CommandSender s, String[] args) {
+        BaselineStore store = new BaselineStore(dataFolder.resolve("baseline.properties"));
+        String action = args.length > 1 ? args[1].toLowerCase(java.util.Locale.ROOT) : "diff";
+        if (action.equals("pin")) {
+            DiagnosticReport r = api.getLatestReport().orElseGet(api::runDiagnostics);
+            try {
+                store.pin(Baselines.from(r, serverVersion));
+                send(s, true, "&aBaseline pinned.");
+            } catch (IOException e) {
+                send(s, true, "&cCould not pin baseline: " + e.getMessage());
+            }
+        } else {
+            store.load().ifPresentOrElse(base -> {
+                DiagnosticReport now = api.getLatestReport().orElseGet(api::runDiagnostics);
+                send(s, false, "&7Baseline diff:");
+                new BaselineComparator().compare(base, now)
+                        .forEach(line -> send(s, false, "&8» &7" + line));
+            }, () -> send(s, true, "&eNo baseline pinned yet — run /serverdoctor baseline pin first."));
+        }
     }
 
     // -- Helfer --
@@ -176,7 +222,7 @@ public final class ServerDoctorCommand implements CommandExecutor, TabCompleter 
     public List<String> onTabComplete(@NonNull CommandSender s, @NonNull Command cmd, @NonNull String label, String[] args) {
         if (args.length == 1) {
             List<String> opts = new ArrayList<>();
-            Stream.of("scan", "report", "tps", "conflicts", "security", "recs", "history", "reload", "gui", "menu")
+            Stream.of("scan", "report", "tps", "conflicts", "security", "recs", "history", "reload", "gui", "menu", "export", "baseline")
                     .filter(o -> o.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .forEach(opts::add);
             return opts;

@@ -3,7 +3,11 @@ package com.serverdoctor.rest;
 import com.serverdoctor.api.ServerDoctorApi;
 import com.serverdoctor.api.module.AnalysisResult;
 import com.serverdoctor.api.module.DiagnosticReport;
-import com.serverdoctor.common.model.*;
+import com.serverdoctor.common.model.ConflictReport;
+import com.serverdoctor.common.model.Finding;
+import com.serverdoctor.common.model.PerformanceSnapshot;
+import com.serverdoctor.common.model.Recommendation;
+import com.serverdoctor.common.model.SecurityRisk;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -12,6 +16,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -23,14 +28,14 @@ import java.util.function.Consumer;
  * or mutates anything.
  *
  * <p>Endpoints (all GET): {@code /health} (no auth), {@code /performance}, {@code /conflicts},
- * {@code /security}, {@code /recommendations}, {@code /report}. If a token is configured,
+ * {@code /security}, {@code /recommendations}, {@code /report}, {@code /metrics} (Prometheus). If a token is configured,
  * every endpoint except {@code /health} requires {@code Authorization: Bearer <token>}.
  */
 public final class RestApiServer {
 
     private final ServerDoctorApi api;
     private final RestApiConfig config;
-    final String version;
+    private final String version;
     private final Consumer<String> log;
 
     private HttpServer server;
@@ -39,7 +44,7 @@ public final class RestApiServer {
         this.api = api;
         this.config = config;
         this.version = version == null ? "unknown" : version;
-        this.log = log == null ? m -> { } : log;
+        this.log = log == null ? m -> {} : log;
     }
 
     public void start() throws IOException {
@@ -47,7 +52,6 @@ public final class RestApiServer {
 
         server = HttpServer.create(new InetSocketAddress(config.host(), config.port()), 0);
         AtomicInteger n = new AtomicInteger();
-
         server.setExecutor(Executors.newFixedThreadPool(2, r -> {
             Thread t = new Thread(r, "serverdoctor-rest-" + n.incrementAndGet());
             t.setDaemon(true);
@@ -60,9 +64,11 @@ public final class RestApiServer {
         server.createContext("/security", auth(this::security));
         server.createContext("/recommendations", auth(this::recommendations));
         server.createContext("/report", auth(this::report));
+        server.createContext("/metrics", auth(this::metrics));
 
         server.start();
-        log.accept("REST API listening on http://" + config.host() + ":" + config.port() + (config.requiresAuth() ? " (token required)" : ""));
+        log.accept("REST API listening on http://" + config.host() + ":" + config.port()
+                + (config.requiresAuth() ? " (token required)" : ""));
     }
 
     public void stop() {
@@ -74,41 +80,48 @@ public final class RestApiServer {
 
     // ---- handlers -----------------------------------------------------------
 
-    private void health(HttpExchange e) throws IOException {
-        respond(e, 200, J.obj("ok", "name", J.s("ServerDoctor"), "version", J.s(version)));
+    private void health(HttpExchange ex) throws IOException {
+        respond(ex, 200, J.obj("status", J.s("ok"), "name", J.s("ServerDoctor"), "version", J.s(version)));
     }
 
-    private void performance(HttpExchange e) throws IOException {
-        if (notGet(e)) return;
-        respond(e, 200, performanceJson(api.getPerformanceSnapshot()));
+    private void performance(HttpExchange ex) throws IOException {
+        if (notGet(ex)) return;
+        respond(ex, 200, performanceJson(api.getPerformanceSnapshot()));
     }
 
-    private void conflicts(HttpExchange e) throws IOException {
-        if (notGet(e)) return;
-        respond(e, 200, J.arr(api.getConflicts().stream().map(RestApiServer::conflictJson).toList()));
+    private void conflicts(HttpExchange ex) throws IOException {
+        if (notGet(ex)) return;
+        respond(ex, 200, J.arr(api.getConflicts().stream().map(RestApiServer::conflictJson).toList()));
     }
 
-    private void security(HttpExchange e) throws IOException {
-        if (notGet(e)) return;
-        respond(e, 200, J.arr(api.getSecurityRisks().stream().map(RestApiServer::riskJson).toList()));
+    private void security(HttpExchange ex) throws IOException {
+        if (notGet(ex)) return;
+        respond(ex, 200, J.arr(api.getSecurityRisks().stream().map(RestApiServer::riskJson).toList()));
     }
 
-    private void recommendations(HttpExchange e) throws IOException {
-        if (notGet(e)) return;
-        respond(e, 200, J.arr(api.getRecommendations().stream().map(RestApiServer::recommendationJson).toList()));
+    private void recommendations(HttpExchange ex) throws IOException {
+        if (notGet(ex)) return;
+        respond(ex, 200, J.arr(api.getRecommendations().stream().map(RestApiServer::recommendationJson).toList()));
     }
 
-    private void report(HttpExchange e) throws IOException {
-        if (notGet(e)) return;
+    private void report(HttpExchange ex) throws IOException {
+        if (notGet(ex)) return;
         Optional<DiagnosticReport> latest = api.getLatestReport();
         if (latest.isEmpty()) {
-            respond(e, 404, J.obj("error", J.s("No report available")));
+            respond(ex, 404, J.obj("error", J.s("no report yet")));
             return;
         }
-        respond(e, 200, reportJson(latest.get()));
+        respond(ex, 200, reportJson(latest.get()));
+    }
+
+    private void metrics(HttpExchange ex) throws IOException {
+        if (notGet(ex)) return;
+        String body = PrometheusFormatter.render(api.getPerformanceSnapshot(), api.getLatestReport());
+        respondText(ex, 200, body);
     }
 
     // ---- serialization ------------------------------------------------------
+
     private static double tpsAt(PerformanceSnapshot p, int i) {
         double[] t = p.tps();
         return t != null && t.length > i ? t[i] : Double.NaN;
@@ -204,6 +217,15 @@ public final class RestApiServer {
         if ("GET".equalsIgnoreCase(ex.getRequestMethod())) return false;
         respond(ex, 405, J.obj("error", J.s("method not allowed")));
         return true;
+    }
+
+    private void respondText(HttpExchange ex, int status, String text) throws IOException {
+        byte[] body = text.getBytes(StandardCharsets.UTF_8);
+        ex.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+        ex.sendResponseHeaders(status, body.length);
+        try (OutputStream os = ex.getResponseBody()) {
+            os.write(body);
+        }
     }
 
     private void respond(HttpExchange ex, int status, String json) throws IOException {

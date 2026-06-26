@@ -5,13 +5,11 @@ import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
+import com.serverdoctor.api.module.DiagnosticReport;
 import com.serverdoctor.storage.StorageException;
 import com.serverdoctor.storage.StorageProvider;
-import com.serverdoctor.storage.repository.ConflictRepository;
-import com.serverdoctor.storage.repository.PerformanceRepository;
-import com.serverdoctor.storage.repository.PluginRepository;
-import com.serverdoctor.storage.repository.RecommendationRepository;
-import com.serverdoctor.storage.repository.SecurityRepository;
+import com.serverdoctor.storage.node.InMemoryNodeRepository;
+import com.serverdoctor.storage.repository.*;
 
 /**
  * MongoDB-Backend. Erwartet eine vollständige Connection-URI (inkl. ggf. Zugangsdaten,
@@ -28,6 +26,7 @@ public final class MongoStorageProvider implements StorageProvider {
     private SecurityRepository security;
     private RecommendationRepository recommendations;
     private PluginRepository plugins;
+    private final NodeRepository nodes = new InMemoryNodeRepository();
 
     public MongoStorageProvider(String connectionString) {
         this.connectionString = connectionString;
@@ -67,6 +66,7 @@ public final class MongoStorageProvider implements StorageProvider {
     @Override public SecurityRepository security() { requireInit(); return security; }
     @Override public RecommendationRepository recommendations() { requireInit(); return recommendations; }
     @Override public PluginRepository plugins() { requireInit(); return plugins; }
+    @Override public NodeRepository nodes() { requireInit(); return nodes; }
 
     @Override
     public void close() {
@@ -77,5 +77,10 @@ public final class MongoStorageProvider implements StorageProvider {
                 throw new StorageException("Konnte MongoDB-Verbindung nicht schließen", e);
             }
         }
+    }
+
+    @Override
+    public void saveReport(DiagnosticReport report) {
+        StorageProvider.super.saveReport(report);
     }
 }

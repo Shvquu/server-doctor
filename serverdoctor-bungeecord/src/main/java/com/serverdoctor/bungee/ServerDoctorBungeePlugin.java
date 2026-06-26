@@ -14,6 +14,7 @@ import com.serverdoctor.core.config.FilesystemConfigSource;
 import com.serverdoctor.core.engine.ScannerSources;
 import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
+import com.serverdoctor.core.network.NodeFingerprints;
 import com.serverdoctor.core.regression.PerformanceHistory;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
@@ -23,6 +24,8 @@ import com.serverdoctor.storage.StorageConfig;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.StorageProviders;
 import com.serverdoctor.storage.repository.NodeRepository;
+import com.serverdoctor.webhook.HealthDigest;
+import com.serverdoctor.webhook.WebhookConfig;
 import com.serverdoctor.webhook.WebhookDispatcher;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -56,14 +59,20 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         AdvisorySource advisories = buildAdvisorySource(cfg);
         CompatibilityMetadataSource compat = buildCompatibilitySource(cfg);
         NodeRepository nodeRepo = storage.nodes();
+        if (nodeRepo == null) {
+            getLogger().warning("storage.nodes() returned null (" + storage.getClass().getSimpleName()
+                    + ") - cross-node stays inactive. Check that your StorageProvider assigns 'nodes' in initialize().");
+        }
         String nodeName = resolveNodeName(cfg);
         PerformanceHistory history = limit -> storage.performance().recent(limit);
+        WebhookConfig webhookConfig = BungeeServiceSettings.webhooks(cfg);
+
         ScannerSources sources = ScannerSources.builder()
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
                 .config(new FilesystemConfigSource())
-                .network(() -> nodeRepo.others(nodeName))
+                .network(() -> nodeRepo == null ? java.util.List.of() : nodeRepo.others(nodeName))
                 .build();
 
         this.core = ServerDoctorCore.bootstrap(platform, sources);
@@ -73,12 +82,15 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
             try {
                 storage.saveReport(e.report());
+                if (nodeRepo != null) {
+                    nodeRepo.upsert(NodeFingerprints.of(platform, nodeName));
+                }
             } catch (Exception ex) {
                 getLogger().warning("Persistence failed: " + ex.getMessage());
             }
         });
 
-        this.command = new ServerDoctorBungeeCommand(api, messages, this::reloadMessages);
+        this.command = new ServerDoctorBungeeCommand(api, messages, this::reloadMessages, getDataFolder().toPath(), NodeFingerprints.minecraftVersion(platform.serverInfo().version()));
         getProxy().getPluginManager().registerCommand(this, command);
 
         // REST API (no-op if disabled in config.yml)
@@ -90,8 +102,24 @@ public final class ServerDoctorBungeePlugin extends Plugin {
             getLogger().warning("REST API could not start: " + ex.getMessage());
         }
 
+        // --- Health-Digest ---
+        @SuppressWarnings("unchecked")
+        Map<String, Object> digestCfg =
+                (cfg.get("webhooks") instanceof Map<?, ?> w && ((Map<String,Object>) w).get("digest") instanceof Map<?, ?> d)
+                        ? (Map<String, Object>) d : Map.of();
+        boolean digestOn = Boolean.parseBoolean(String.valueOf(digestCfg.getOrDefault("enabled", false)));
+        long    minutes  = Long.parseLong(String.valueOf(digestCfg.getOrDefault("interval-minutes", 1440)));
+
+        if (webhookConfig.enabled() && digestOn) {
+            HealthDigest digest = new HealthDigest(webhookConfig, "", getLogger()::warning);
+            long periodTicks = Math.max(1, minutes) * 60L * 20L;
+            platform.scheduler().runRepeatingAsync(
+                    () -> api.getLatestReport().ifPresent(digest::send),
+                    periodTicks, periodTicks);
+        }
+
         // Webhooks (no-op if disabled / no valid targets). Subscribes to the event bus itself.
-        new WebhookDispatcher(BungeeServiceSettings.webhooks(cfg), api.events(),
+        new WebhookDispatcher(webhookConfig, api.events(),
                 "BungeeCord", msg -> getLogger().warning(msg)).start();
 
         this.periodicTask = platform.scheduler().runRepeatingAsync(api::runDiagnostics, 20L * 30L, 20L * 60L * 5L);
@@ -238,7 +266,9 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         String configured = raw == null ? "" : String.valueOf(raw).trim();
         if (!configured.isEmpty()) return configured;
 
-        // stabiler Fallback: Bind-Port des Proxys (eindeutig pro Velocity-Instanz)
-        return "bungeecord-" + getProxy().getConfig().getListeners().iterator().next().getQueryPort();
+        // stable fallback: the first listener's query port (unique per BungeeCord instance)
+        var listeners = getProxy().getConfig().getListeners();
+        int port = listeners.isEmpty() ? 25577 : listeners.iterator().next().getQueryPort();
+        return "bungeecord-" + port;
     }
 }

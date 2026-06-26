@@ -1,12 +1,10 @@
 package com.serverdoctor.storage.impl.jdbc;
 
+import com.serverdoctor.api.module.DiagnosticReport;
 import com.serverdoctor.storage.StorageException;
 import com.serverdoctor.storage.StorageProvider;
-import com.serverdoctor.storage.repository.ConflictRepository;
-import com.serverdoctor.storage.repository.PerformanceRepository;
-import com.serverdoctor.storage.repository.PluginRepository;
-import com.serverdoctor.storage.repository.RecommendationRepository;
-import com.serverdoctor.storage.repository.SecurityRepository;
+import com.serverdoctor.storage.node.InMemoryNodeRepository;
+import com.serverdoctor.storage.repository.*;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -28,6 +26,8 @@ public final class JdbcStorageProvider implements StorageProvider {
     private final String username;
     private final String password;
     private final JdbcDialect dialect;
+
+    private final NodeRepository nodes = new InMemoryNodeRepository();
 
     private HikariDataSource dataSource;
     private JdbcContext ctx;
@@ -99,11 +99,17 @@ public final class JdbcStorageProvider implements StorageProvider {
     @Override public SecurityRepository security() { requireInit(); return security; }
     @Override public RecommendationRepository recommendations() { requireInit(); return recommendations; }
     @Override public PluginRepository plugins() { requireInit(); return plugins; }
+    @Override public NodeRepository nodes() { requireInit(); return nodes; }
 
     @Override
     public void close() {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
         }
+    }
+
+    @Override
+    public void saveReport(DiagnosticReport report) {
+        StorageProvider.super.saveReport(report);
     }
 }

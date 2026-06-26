@@ -1,16 +1,14 @@
 package com.serverdoctor.storage.impl.memory;
 
+import com.serverdoctor.api.module.DiagnosticReport;
 import com.serverdoctor.common.model.ConflictReport;
 import com.serverdoctor.common.model.PerformanceSnapshot;
 import com.serverdoctor.common.model.PluginInfo;
 import com.serverdoctor.common.model.Recommendation;
 import com.serverdoctor.common.model.SecurityRisk;
 import com.serverdoctor.storage.StorageProvider;
-import com.serverdoctor.storage.repository.ConflictRepository;
-import com.serverdoctor.storage.repository.PerformanceRepository;
-import com.serverdoctor.storage.repository.PluginRepository;
-import com.serverdoctor.storage.repository.RecommendationRepository;
-import com.serverdoctor.storage.repository.SecurityRepository;
+import com.serverdoctor.storage.node.InMemoryNodeRepository;
+import com.serverdoctor.storage.repository.*;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,6 +31,7 @@ public final class MemoryStorageProvider implements StorageProvider {
     private final Deque<SecurityRisk> riskList = new ConcurrentLinkedDeque<>();
     private final Deque<Recommendation> recList = new ConcurrentLinkedDeque<>();
     private volatile List<PluginInfo> inventory = List.of();
+    private final NodeRepository nodes = new InMemoryNodeRepository();
 
     @Override public void initialize() { /* nichts zu tun */ }
 
@@ -89,6 +88,16 @@ public final class MemoryStorageProvider implements StorageProvider {
             @Override public void saveInventory(Instant at, List<PluginInfo> plugins) { inventory = List.copyOf(plugins); }
             @Override public List<PluginInfo> latestInventory() { return inventory; }
         };
+    }
+
+    @Override
+    public NodeRepository nodes() {
+        return nodes;
+    }
+
+    @Override
+    public void saveReport(DiagnosticReport report) {
+        StorageProvider.super.saveReport(report);
     }
 
     @Override public void close() { /* nichts zu tun */ }

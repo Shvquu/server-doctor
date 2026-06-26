@@ -25,6 +25,8 @@ import com.serverdoctor.storage.repository.NodeRepository;
 import com.serverdoctor.velocity.platform.VelocityServerPlatform;
 import com.serverdoctor.velocity.service.VelocityServiceSettings;
 import com.serverdoctor.velocity.storage.VelocityStorageSettings;
+import com.serverdoctor.webhook.HealthDigest;
+import com.serverdoctor.webhook.WebhookConfig;
 import com.serverdoctor.webhook.WebhookDispatcher;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
@@ -79,15 +81,21 @@ public final class ServerDoctorVelocityPlugin {
         AdvisorySource advisories = advisoryFrom(cfg);
         CompatibilityMetadataSource compat = buildCompatibilitySource(cfg);
         NodeRepository nodeRepo = storage.nodes();
+        if (nodeRepo == null) {
+            logger.warn("storage.nodes() lieferte null ({}) - Cross-Node bleibt inaktiv. "
+                            + "Prueft, ob euer StorageProvider 'nodes' in initialize() zuweist.",
+                    storage.getClass().getSimpleName());
+        }
         String nodeName = resolveNodeName(cfg);
         PerformanceHistory history = limit -> storage.performance().recent(limit);
+        WebhookConfig webhookConfig = VelocityServiceSettings.webhooks(cfg);
 
         ScannerSources sources = ScannerSources.builder()
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
                 .config(new FilesystemConfigSource())
-                .network(() -> nodeRepo.others(nodeName))
+                .network(() -> nodeRepo == null ? java.util.List.of() : nodeRepo.others(nodeName))
                 .build();
 
         this.core = ServerDoctorCore.bootstrap(platform, sources);
@@ -97,7 +105,9 @@ public final class ServerDoctorVelocityPlugin {
         api.events().subscribe(AnalysisFinishedEvent.class, e -> {
             try {
                 storage.saveReport(e.report());
-                nodeRepo.upsert(NodeFingerprints.of(platform, nodeName));
+                if (nodeRepo != null) {
+                    nodeRepo.upsert(NodeFingerprints.of(platform, nodeName));
+                }
             } catch (Exception ex) {
                 logger.warn("Persistenz fehlgeschlagen: {}", ex.getMessage());
             }
@@ -105,7 +115,7 @@ public final class ServerDoctorVelocityPlugin {
 
         proxy.getCommandManager().register(
                 proxy.getCommandManager().metaBuilder("serverdoctor").aliases("sd").build(),
-                new ServerDoctorVelocityCommand(api, messages, this::reloadMessages));
+                new ServerDoctorVelocityCommand(api, messages, this::reloadMessages, dataDirectory, NodeFingerprints.minecraftVersion(platform.serverInfo().version())));
 
         // REST API (no-op if disabled in config.yml)
         try {
@@ -116,8 +126,25 @@ public final class ServerDoctorVelocityPlugin {
             logger.warn("REST API konnte nicht starten: {}", ex.getMessage());
         }
 
+
+        // --- Health-Digest ---
+        @SuppressWarnings("unchecked")
+        Map<String, Object> digestCfg =
+                (cfg.get("webhooks") instanceof Map<?, ?> w && ((Map<String,Object>) w).get("digest") instanceof Map<?, ?> d)
+                        ? (Map<String, Object>) d : Map.of();
+        boolean digestOn = Boolean.parseBoolean(String.valueOf(digestCfg.getOrDefault("enabled", false)));
+        long    minutes  = Long.parseLong(String.valueOf(digestCfg.getOrDefault("interval-minutes", 1440)));
+
+        if (webhookConfig.enabled() && digestOn) {
+            HealthDigest digest = new HealthDigest(webhookConfig, "", logger::warn);
+            long periodTicks = Math.max(1, minutes) * 60L * 20L;
+            platform.scheduler().runRepeatingAsync(
+                    () -> api.getLatestReport().ifPresent(digest::send),
+                    periodTicks, periodTicks);
+        }
+
         // Webhooks (no-op if disabled / no valid targets). Subscribes to the event bus itself.
-        new WebhookDispatcher(VelocityServiceSettings.webhooks(cfg), api.events(),
+        new WebhookDispatcher(webhookConfig, api.events(),
                 "Velocity", logger::warn).start();
 
         this.periodicTask = platform.scheduler().runRepeatingAsync(api::runDiagnostics, 20L * 30L, 20L * 60L * 5L);
