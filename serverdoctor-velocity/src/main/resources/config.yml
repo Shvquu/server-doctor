@@ -102,3 +102,10 @@ webhooks:
     - type: teams
       name: ""
       url: ""
+  # --- Health digest: periodic webhook summary (complements the event-based alerts) ---
+  digest:
+    enabled: false
+    interval-minutes: 1440      # 1440 = once per day
+  # Report export and baseline use commands only (no config). Exports are written to
+  # <data-folder>/exports/. The pinned baseline is stored at <data-folder>/baseline.properties.
+  # The Prometheus endpoint needs no config beyond enabling the REST API (it is served at /metrics).
