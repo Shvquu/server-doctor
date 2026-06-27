@@ -18,19 +18,19 @@ into a platform SDK and the platform adapters stay read-only.
 
 ## Modules
 
-| Module | Contents | Status |
-|---|---|---|
-| `serverdoctor-common` | Domain models, utilities, exception base | verified |
-| `serverdoctor-api` | Public contract, events, module SPI | verified |
-| `serverdoctor-core` | Engine, 8 scanners, recommendations, conflict DB, update checker, optional sources | verified |
-| `serverdoctor-storage` | StorageProvider, 5 repositories — In-Memory, SQLite, PostgreSQL, MariaDB, MongoDB | verified |
-| `serverdoctor-rest-api` | Read-only HTTP/JSON endpoints (JDK only) | buildable |
-| `serverdoctor-webhook` | Discord / Slack / Teams notifications (JDK only) | buildable |
-| `serverdoctor-testing` | Fake-platform fixtures, JUnit 5 suite, ArchUnit rules | verified |
-| `serverdoctor-paper` | Bukkit/Paper/Folia adapter, in-game GUI, command, PlaceholderAPI bridge, storage wiring | buildable |
-| `serverdoctor-velocity` | Velocity adapter, command, storage wiring | buildable |
-| `serverdoctor-bungeecord` | BungeeCord adapter, command, storage wiring | buildable |
-| `serverdoctor-universal` | Bundles Paper + Velocity + BungeeCord into one shaded jar | buildable |
+| Module                    | Contents                                                                                | Status    |
+|---------------------------|-----------------------------------------------------------------------------------------|-----------|
+| `serverdoctor-common`     | Domain models, utilities, exception base                                                | verified  |
+| `serverdoctor-api`        | Public contract, events, module SPI                                                     | verified  |
+| `serverdoctor-core`       | Engine, 8 scanners, recommendations, conflict DB, update checker, optional sources      | verified  |
+| `serverdoctor-storage`    | StorageProvider, 5 repositories — In-Memory, SQLite, PostgreSQL, MariaDB, MongoDB       | verified  |
+| `serverdoctor-rest-api`   | Read-only HTTP/JSON endpoints (JDK only)                                                | buildable |
+| `serverdoctor-webhook`    | Discord / Slack / Teams notifications (JDK only)                                        | buildable |
+| `serverdoctor-testing`    | Fake-platform fixtures, JUnit 5 suite, ArchUnit rules                                   | verified  |
+| `serverdoctor-paper`      | Bukkit/Paper/Folia adapter, in-game GUI, command, PlaceholderAPI bridge, storage wiring | buildable |
+| `serverdoctor-velocity`   | Velocity adapter, command, storage wiring                                               | buildable |
+| `serverdoctor-bungeecord` | BungeeCord adapter, command, storage wiring                                             | buildable |
+| `serverdoctor-universal`  | Bundles Paper + Velocity + BungeeCord into one shaded jar                               | buildable |
 
 ## Scanners
 
@@ -198,14 +198,14 @@ A configurable background scan also runs automatically (every 120 s by default).
 
 Enable `rest-api` in `config.yml`. All endpoints are GET and return JSON:
 
-| Endpoint | Description | Auth |
-|---|---|---|
-| `/health` | liveness probe | none |
-| `/performance` | latest TPS/MSPT/RAM snapshot | token (if set) |
-| `/conflicts` | detected conflicts | token (if set) |
-| `/security` | security/advisory risks | token (if set) |
-| `/recommendations` | recommendations | token (if set) |
-| `/report` | full latest report | token (if set) |
+| Endpoint           | Description                  | Auth           |
+|--------------------|------------------------------|----------------|
+| `/health`          | liveness probe               | none           |
+| `/performance`     | latest TPS/MSPT/RAM snapshot | token (if set) |
+| `/conflicts`       | detected conflicts           | token (if set) |
+| `/security`        | security/advisory risks      | token (if set) |
+| `/recommendations` | recommendations              | token (if set) |
+| `/report`          | full latest report           | token (if set) |
 
 ## Webhooks
 
