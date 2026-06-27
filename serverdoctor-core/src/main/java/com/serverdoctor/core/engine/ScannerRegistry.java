@@ -27,4 +27,7 @@ public final class ScannerRegistry {
     }
 
     public List<AnalysisModule> all() { return List.copyOf(modules.values()); }
+
+    /** Sorted ids of all currently registered modules. */
+    public List<String> ids() { return modules.keySet().stream().sorted().toList(); }
 }
