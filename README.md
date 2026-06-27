@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/Shvquu/server-doctor/actions/workflows/workflow.yml/badge.svg)](https://github.com/Shvquu/server-doctor/actions/workflows/workflow.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.10.0-informational.svg)](https://github.com/Shvquu/server-doctor/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-success.svg)](https://github.com/Shvquu/server-doctor/releases)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
 [![Paper/Folia](https://img.shields.io/badge/Paper%2FFolia-1.21.x-brightgreen.svg)](https://papermc.io/)
 [![Velocity](https://img.shields.io/badge/Velocity-3.5-brightgreen.svg)](https://papermc.io/software/velocity)
@@ -15,6 +15,10 @@ ServerDoctor runs the same engine on **Paper/Folia**, **Velocity** and **BungeeC
 a single jar. The core is platform-neutral; thin adapters wire it into each platform. A strict
 architecture boundary (enforced as a build breaker) guarantees the analysis layer can never reach
 into a platform SDK and the platform adapters stay read-only.
+
+> **v1.0.0** — first stable release: 11 read-only scanners, five storage backends, cross-node
+> consistency checks, a Prometheus endpoint, report export and baselines. No fabricated data, no
+> silent fallbacks — honest, actionable diagnostics.
 
 ## Modules
 
@@ -34,8 +38,8 @@ into a platform SDK and the platform adapters stay read-only.
 
 ## Scanners
 
-Eight read-only scanners run every analysis (proxy platforms skip the ones that need a tick loop
-or a world):
+Eleven read-only scanners run every analysis (proxy platforms automatically skip the ones that
+need a tick loop or a world):
 
 - **Plugin** — inventory and metadata of installed plugins.
 - **Dependency** — missing or soft dependencies.
@@ -49,6 +53,11 @@ or a world):
 - **Configuration** — reviews `server.properties`, `bukkit.yml`, `spigot.yml`,
   `paper-global.yml`, `paper-world.yml` and `velocity.toml` for settings that commonly hurt
   performance or safety, and recommends fixes.
+- **Disk** — free space on the data directory's filesystem and the size of the log directory.
+- **Runtime** — JVM and Java version vs. the recommended JDK 21, max heap vs. system RAM, and GC
+  flags. Self-probing; needs no wiring.
+- **Cross-node** — compares server, Java and plugin versions across every node writing to the same
+  shared database and flags version drift (see *Cross-node* below).
 
 ### Honest by design
 Three scanners can be enriched by **real, external feeds you (or the community) maintain** —
@@ -71,7 +80,7 @@ wrapper is included).
 gradle :serverdoctor-universal:shadowJar
 ```
 
-Output: `serverdoctor-universal/build/libs/serverdoctor-0.10.0.jar`
+Output: `serverdoctor-universal/build/libs/serverdoctor-1.0.0.jar`
 
 That one jar carries a `plugin.yml` (Paper/Folia), a `velocity-plugin.json` (Velocity) **and** a
 `bungee.yml` (BungeeCord), so the same file drops into the `plugins/` folder of a Paper 1.21.x
@@ -125,6 +134,23 @@ then to In-Memory rather than blocking the server from starting. On a network, a
 PostgreSQL/MariaDB/MongoDB is the point: the proxy and the backend servers write into the same
 database. SQLite and In-Memory are best for a single node.
 
+### Cross-node
+
+The **cross-node** scanner compares each node's server/Java/plugin versions against the others to
+catch a backend that's been forgotten on an old build. It only sees other nodes through a
+**shared** database, so it stays quietly inactive on SQLite or In-Memory (single node by design).
+To enable real cross-node checks, point every node at the same PostgreSQL/MariaDB/MongoDB instance
+and give each one a unique name:
+
+```yaml
+network:
+  # Unique identifier for this node in cross-node checks.
+  # If empty, falls back to "<platform>-<port>" (e.g. paper-25565, velocity-25577).
+  node-name: ""
+```
+
+Each node upserts its own fingerprint after every scan; the scanner reads the others.
+
 ### Optional features
 
 ```yaml
@@ -156,6 +182,10 @@ webhooks:
     - type: discord      # discord | slack | teams
       url: ""
       name: "ops"
+  # Periodic summary pushed to the same targets, regardless of status change.
+  digest:
+    enabled: false
+    interval-minutes: 1440
 
 # Optional external feeds (off by default — see "Honest by design")
 security:
@@ -177,18 +207,32 @@ compatibility:
 Performance, Conflicts, Security, Recommendations and History, with a Refresh button that re-runs
 the analysis. It's Folia-safe (entity/async schedulers) and never modifies anything.
 
+## Operator tooling
+
+- **Report export** — `/serverdoctor export [json|md|html]` writes the latest report to
+  `<data folder>/exports/`. Handy for tickets, audits or sharing a snapshot.
+- **Baselines** — `/serverdoctor baseline pin` stores the current report as a known-good baseline
+  in `<data folder>/baseline.properties`; `/serverdoctor baseline` then prints exactly what has
+  drifted since (TPS, MSPT, RAM, conflict/risk counts).
+- **Health digest** — an optional periodic summary pushed to your webhook targets (see
+  `webhooks.digest`), independent of the status-change notifications.
+- **Prometheus** — when the REST API is enabled, `/metrics` exposes the latest snapshot in
+  Prometheus text format for scraping (token-gated like the other endpoints).
+
 ## Commands
 
 ```
-/serverdoctor scan            # run a full analysis
-/serverdoctor report          # show the latest report
-/serverdoctor tps             # live performance (TPS/MSPT/RAM)
-/serverdoctor conflicts       # detected plugin conflicts
-/serverdoctor security        # security and maintenance risks
-/serverdoctor recs            # generated recommendations
-/serverdoctor history         # stored performance history (Paper/Folia)
-/serverdoctor gui             # open the in-game GUI (Paper/Folia)
-/serverdoctor reload          # reload messages.yml
+/serverdoctor scan                    # run a full analysis
+/serverdoctor report                  # show the latest report
+/serverdoctor tps                     # live performance (TPS/MSPT/RAM)
+/serverdoctor conflicts               # detected plugin conflicts
+/serverdoctor security                # security and maintenance risks
+/serverdoctor recs                    # generated recommendations
+/serverdoctor history                 # stored performance history (Paper/Folia)
+/serverdoctor gui                     # open the in-game GUI (Paper/Folia)
+/serverdoctor export [json|md|html]   # export the latest report to disk
+/serverdoctor baseline [pin]          # pin a baseline / show drift since it
+/serverdoctor reload                  # reload messages.yml
 ```
 
 Aliases: `/sd`, `/doctor` · Permission: `serverdoctor.admin` (default: op).
@@ -196,7 +240,8 @@ A configurable background scan also runs automatically (every 120 s by default).
 
 ## REST API
 
-Enable `rest-api` in `config.yml`. All endpoints are GET and return JSON:
+Enable `rest-api` in `config.yml`. All endpoints are GET and return JSON (except `/metrics`,
+which returns Prometheus text):
 
 | Endpoint           | Description                  | Auth           |
 |--------------------|------------------------------|----------------|
@@ -211,7 +256,8 @@ Enable `rest-api` in `config.yml`. All endpoints are GET and return JSON:
 
 `webhooks` supports **Discord**, **Slack** and **Microsoft Teams**. Notifications fire only on a
 status change at or above `min-severity` (new / worse / recovered), so the background scan doesn't
-spam your channel.
+spam your channel. A separate **health digest** (`webhooks.digest`) can push a periodic summary on
+a fixed interval.
 
 ## Tests
 
@@ -223,10 +269,11 @@ gradle test
 ```
 
 Coverage includes version/severity logic, the AnalysisResult builder, ScannerRegistry capability
-gating, the EventBus (including error isolation), the scanner thresholds, the RecommendationEngine,
-the analysis engine end-to-end, and storage round-trips. The ArchUnit rules enforce, as build
-breakers: no platform SDK in Core/Common/API/Storage, the Clean Architecture dependency rule, and
-the read-only invariant of the platform adapters.
+gating, the EventBus (including error isolation), every scanner's thresholds (incl. regression,
+configuration, disk, runtime and cross-node), the RecommendationEngine, the analysis engine
+end-to-end, report export and baseline diffing, the Prometheus formatter, and storage round-trips.
+The ArchUnit rules enforce, as build breakers: no platform SDK in Core/Common/API/Storage, the
+Clean Architecture dependency rule, and the read-only invariant of the platform adapters.
 
 > Note: JUnit must stay on the 5.x line — ArchUnit's JUnit 5 integration does not yet support
 > JUnit Platform 6.
@@ -261,8 +308,13 @@ API failures share a common base, so you can catch them in one place: `ServerDoc
 (with `ApiNotInitializedException`, `ConfigurationException`, `StorageException`,
 `AnalysisException`).
 
-## Not included yet (upcoming iterations)
+## Roadmap
 
-- `serverdoctor-example-plugin` (reference integration)
-- Findings-/conflict-count trend detection at the persistence layer (the regression scanner
-  currently covers TPS/MSPT/RAM)
+- `serverdoctor-example-plugin` (reference integration).
+- Trend detection for finding/conflict counts at the persistence layer (the regression scanner
+  currently covers TPS/MSPT/RAM).
+
+---
+
+ServerDoctor is read-only by design. It observes, measures and advises — it never modifies your
+server. Full documentation lives in the [Wiki](https://github.com/Shvquu/server-doctor/wiki).
