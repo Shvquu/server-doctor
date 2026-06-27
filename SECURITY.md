@@ -5,7 +5,7 @@
 The latest release is considered supported and receives security updates when necessary.
 
 | Version        | Supported |
-| -------------- | --------- |
+|----------------|-----------|
 | Latest Release | ✅         |
 | Older Releases | ❌         |
 
