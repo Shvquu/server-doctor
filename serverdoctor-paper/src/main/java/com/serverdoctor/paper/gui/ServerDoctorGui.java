@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -65,7 +66,7 @@ public final class ServerDoctorGui implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        Inventory top = event.getView().getTopInventory();
+        Inventory top = event.getInventory(); // top inventory; avoids InventoryView (class->interface in 1.21)
         if (!(top.getHolder() instanceof MenuHolder holder)) return;
         event.setCancelled(true); // read-only GUI
         if (!(event.getWhoClicked() instanceof Player player)) return;
@@ -79,14 +80,12 @@ public final class ServerDoctorGui implements Listener {
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof MenuHolder) {
+        if (event.getInventory().getHolder() instanceof MenuHolder) {
             event.setCancelled(true);
         }
     }
 
     private void handleClick(Player player, MenuType type, int slot, int size) {
-        if (slot == size - 1) { player.closeInventory(); return; }        // close
-        if (slot == size - 5) { refresh(player, type); return; }           // refresh
         if (type != MenuType.MAIN && slot == size - 9) {                   // back
             open(player, MenuType.MAIN);
             return;
@@ -98,6 +97,8 @@ public final class ServerDoctorGui implements Listener {
                 case 13 -> open(player, MenuType.SECURITY);
                 case 14 -> open(player, MenuType.RECOMMENDATIONS);
                 case 15 -> open(player, MenuType.HISTORY);
+                case 22 -> refresh(player, type);
+                case 26 -> player.closeInventory(InventoryCloseEvent.Reason.PLAYER);
                 default -> { }
             }
         }
