@@ -4,6 +4,8 @@ import com.google.inject.Inject;
 import com.serverdoctor.api.ServerDoctorApi;
 import com.serverdoctor.api.ServerDoctorProvider;
 import com.serverdoctor.api.event.AnalysisFinishedEvent;
+import com.serverdoctor.api.event.OverallSeverityChangedEvent;
+import com.serverdoctor.api.event.ScannerFailedEvent;
 import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
 import com.serverdoctor.core.compat.CompatibilityMetadataSource;
@@ -112,6 +114,17 @@ public final class ServerDoctorVelocityPlugin {
                 logger.warn("Persistenz fehlgeschlagen: {}", ex.getMessage());
             }
         });
+
+        // Status changes and scanner failures (events added in 1.0.0).
+        api.events().subscribe(OverallSeverityChangedEvent.class, e -> {
+            if (e.worsened()) {
+                logger.warn("Status worsened: {} -> {} (use /serverdoctor report)", e.previous(), e.current());
+            } else if (e.improved()) {
+                logger.info("Status improved: {} -> {}", e.previous(), e.current());
+            }
+        });
+        api.events().subscribe(ScannerFailedEvent.class,
+                e -> logger.warn("Scanner '{}' failed: {}", e.moduleId(), e.error()));
 
         proxy.getCommandManager().register(
                 proxy.getCommandManager().metaBuilder("serverdoctor").aliases("sd").build(),

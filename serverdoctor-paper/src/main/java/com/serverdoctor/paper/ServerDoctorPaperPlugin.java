@@ -3,7 +3,9 @@ package com.serverdoctor.paper;
 import com.serverdoctor.api.ServerDoctorApi;
 import com.serverdoctor.api.ServerDoctorProvider;
 import com.serverdoctor.api.event.AnalysisFinishedEvent;
+import com.serverdoctor.api.event.OverallSeverityChangedEvent;
 import com.serverdoctor.api.event.PerformanceThresholdReachedEvent;
+import com.serverdoctor.api.event.ScannerFailedEvent;
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.core.advisory.AdvisorySource;
 import com.serverdoctor.core.advisory.AdvisorySources;
@@ -97,6 +99,19 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             } catch (Exception ex) {
                 getLogger().warning("Persistenz fehlgeschlagen: " + ex.getMessage());
             }
+        });
+
+        api.events().subscribe(OverallSeverityChangedEvent.class, e -> {
+            if (e.worsened()) {
+                getLogger().warning("Status worsened: " + e.previous() + " -> " + e.current()
+                        + " (use /serverdoctor report)");
+            } else if (e.improved()) {
+                getLogger().info("Status improved: " + e.previous() + " -> " + e.current());
+            }
+        });
+
+        api.events().subscribe(ScannerFailedEvent.class, e -> {
+            getLogger().warning("Scanner failed: " + e.moduleId() + " (" + e.error() + ")");
         });
 
         // In-game GUI (Paper/Folia)
