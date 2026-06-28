@@ -36,6 +36,7 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+import org.bstats.velocity.Metrics;
 import org.slf4j.Logger;
 
 import java.io.InputStream;
@@ -57,6 +58,9 @@ public final class ServerDoctorVelocityPlugin {
     private final ProxyServer proxy;
     private final Logger logger;
     private final Path dataDirectory;
+    private final Metrics.Factory metricsFactory;
+
+    private static final int METRICS_PLUGIN_ID = 32263;
 
     private ServerDoctorCore core;
     private StorageProvider storage;
@@ -65,10 +69,11 @@ public final class ServerDoctorVelocityPlugin {
     private SchedulerAdapter.Cancellable periodicTask;
 
     @Inject
-    public ServerDoctorVelocityPlugin(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
+    public ServerDoctorVelocityPlugin(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory, Metrics.Factory metricsFactory) {
         this.proxy = proxy;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
+        this.metricsFactory = metricsFactory;
     }
 
     @Subscribe
@@ -165,6 +170,7 @@ public final class ServerDoctorVelocityPlugin {
         logger.info("ServerDoctor aktiviert auf Velocity {}", proxy.getVersion().getVersion());
 
         checkForUpdate(platform);
+        setupMetrics();
     }
 
     @Subscribe
@@ -316,5 +322,13 @@ public final class ServerDoctorVelocityPlugin {
 
         // stabiler Fallback: Bind-Port des Proxys (eindeutig pro Velocity-Instanz)
         return "velocity-" + proxy.getConfiguration().getQueryPort();
+    }
+
+    private void setupMetrics() {
+        try {
+            metricsFactory.make(this, METRICS_PLUGIN_ID);
+        } catch (Throwable t) {
+            logger.warn("Metrics konnte nicht initialisiert werden: {}", t.getMessage());
+        }
     }
 }

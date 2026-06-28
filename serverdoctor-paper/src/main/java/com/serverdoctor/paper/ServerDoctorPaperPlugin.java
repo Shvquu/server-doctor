@@ -37,6 +37,7 @@ import com.serverdoctor.storage.repository.NodeRepository;
 import com.serverdoctor.webhook.HealthDigest;
 import com.serverdoctor.webhook.WebhookConfig;
 import com.serverdoctor.webhook.WebhookDispatcher;
+import org.bstats.bukkit.Metrics;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -181,6 +182,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         getLogger().info("ServerDoctor aktiviert auf " + platform.serverInfo().version());
 
         checkForUpdates(platform);
+        setupMetrics();
     }
 
     @Override
@@ -297,5 +299,13 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         if (configured != null && !configured.isBlank()) return configured;
         // stable, unique fallback: platform + the server's bind port
         return platform.name().toLowerCase(java.util.Locale.ROOT) + "-" + getServer().getPort();
+    }
+
+    private void setupMetrics() {
+        try {
+            new Metrics(this, 32263);
+        } catch (Throwable t) {
+            getLogger().warning("Failed to setup metrics: " + t.getMessage());
+        }
     }
 }

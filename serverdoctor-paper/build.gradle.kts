@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":serverdoctor-rest-api"))
     implementation(project(":serverdoctor-webhook"))
 
+    implementation(libs.bstats.bukkit)
     compileOnly(libs.paper.api)
     compileOnly(libs.placeholderapi)   // optional - nur zur Compile-Zeit
 }

@@ -5,6 +5,7 @@ dependencies {
     implementation(project(":serverdoctor-storage"))
     implementation(project(":serverdoctor-rest-api"))
     implementation(project(":serverdoctor-webhook"))
+    implementation(libs.bstats.bungeecord)
     implementation(libs.snakeyaml)
     compileOnly(libs.bungeecord.api)   // KEIN annotationProcessor
 }

@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":serverdoctor-webhook"))
 
     implementation(libs.snakeyaml)            // nur für das config.yml-Parsing
+    implementation(libs.bstats.velocity)
 
     compileOnly(libs.velocity.api)
     annotationProcessor(libs.velocity.api)
