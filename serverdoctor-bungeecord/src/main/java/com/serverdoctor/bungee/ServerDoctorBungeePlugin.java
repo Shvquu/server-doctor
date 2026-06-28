@@ -31,6 +31,9 @@ import com.serverdoctor.webhook.WebhookConfig;
 import com.serverdoctor.webhook.WebhookDispatcher;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.Plugin;
+import org.bstats.bungeecord.Metrics;
+import org.bstats.charts.SimplePie;
+import org.bstats.charts.SingleLineChart;
 
 import java.io.File;
 import java.io.InputStream;
@@ -142,6 +145,7 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         getLogger().info("ServerDoctor enabled on BungeeCord " + getProxy().getVersion());
 
         checkForUpdate();
+        setupMetrics();
     }
 
     @Override
@@ -252,7 +256,7 @@ public final class ServerDoctorBungeePlugin extends Plugin {
                     deactivate();
                 }
                 case UP_TO_DATE  -> getLogger().info("ServerDoctor is up to date (" + result.currentVersion() + ").");
-                case NO_RELEASES -> getLogger().info("Update check: no releases found.");
+                case NO_RELEASES -> getLogger().warning("Update check: no releases found.");
                 case ERROR       -> getLogger().warning("Update check failed: " + result.detail());
             }
         });
@@ -285,5 +289,13 @@ public final class ServerDoctorBungeePlugin extends Plugin {
         var listeners = getProxy().getConfig().getListeners();
         int port = listeners.isEmpty() ? 25577 : listeners.iterator().next().getQueryPort();
         return "bungeecord-" + port;
+    }
+
+    private void setupMetrics() {
+        try {
+            new Metrics(this, 32263);
+        } catch (Throwable t) {
+            getLogger().warning("Failed to setup metrics: " + t.getMessage());
+        }
     }
 }

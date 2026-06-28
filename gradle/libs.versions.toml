@@ -11,6 +11,7 @@ mariadb    = "3.5.9"
 mongodb    = "5.8.0"
 snakeyaml = "2.6"
 bungeecord = "1.21-R0.4"
+bstats = "3.1.0"
 
 [libraries]
 paper-api       = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
@@ -26,6 +27,9 @@ postgresql     = { module = "org.postgresql:postgresql", version.ref = "postgres
 mariadb-client = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb" }
 mongodb-sync   = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongodb" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+bstats-bukkit     = { module = "org.bstats:bstats-bukkit",     version.ref = "bstats" }
+bstats-velocity   = { module = "org.bstats:bstats-velocity",   version.ref = "bstats" }
+bstats-bungeecord = { module = "org.bstats:bstats-bungeecord", version.ref = "bstats" }
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version = "9.4.2" }
