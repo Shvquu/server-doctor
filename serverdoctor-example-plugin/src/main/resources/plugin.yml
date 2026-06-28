@@ -1,0 +1,22 @@
+name: ServerDoctorExample
+version: '${version}'
+main: com.serverdoctor.example.ServerDoctorExamplePlugin
+api-version: '1.20'
+authors:
+  - LittleSophyy
+description: Reference integration that consumes the ServerDoctor API (read-only).
+website: https://github.com/Shvquu/server-doctor
+# Ensures ServerDoctor is loaded (and its API registered) before this plugin enables.
+depend:
+  - ServerDoctor
+
+commands:
+  sdexample:
+    description: Print a ServerDoctor summary gathered through the public API.
+    usage: /sdexample
+    permission: serverdoctorexample.use
+
+permissions:
+  serverdoctorexample.use:
+    description: Use the ServerDoctor example command.
+    default: op
