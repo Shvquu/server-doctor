@@ -89,8 +89,8 @@ public final class ServerDoctorVelocityPlugin {
         CompatibilityMetadataSource compat = buildCompatibilitySource(cfg);
         NodeRepository nodeRepo = storage.nodes();
         if (nodeRepo == null) {
-            logger.warn("storage.nodes() lieferte null ({}) - Cross-Node bleibt inaktiv. "
-                            + "Prueft, ob euer StorageProvider 'nodes' in initialize() zuweist.",
+            logger.warn("storage.nodes() returned null ({}) - Cross-Node remains inactive. "
+                            + "Check whether your StorageProvider assigns ‘nodes’ in initialize().",
                     storage.getClass().getSimpleName());
         }
         String nodeName = resolveNodeName(cfg);
@@ -116,7 +116,7 @@ public final class ServerDoctorVelocityPlugin {
                     nodeRepo.upsert(NodeFingerprints.of(platform, nodeName));
                 }
             } catch (Exception ex) {
-                logger.warn("Persistenz fehlgeschlagen: {}", ex.getMessage());
+                logger.warn("Persistence failed: {}", ex.getMessage());
             }
         });
 
@@ -141,7 +141,7 @@ public final class ServerDoctorVelocityPlugin {
                     currentVersion(), logger::info);
             this.restApi.start();
         } catch (Exception ex) {
-            logger.warn("REST API konnte nicht starten: {}", ex.getMessage());
+            logger.warn("The REST API could not be started: {}", ex.getMessage());
         }
 
 
@@ -167,7 +167,7 @@ public final class ServerDoctorVelocityPlugin {
 
         this.periodicTask = platform.scheduler().runRepeatingAsync(api::runDiagnostics, 20L * 30L, 20L * 60L * 5L);
 
-        logger.info("ServerDoctor aktiviert auf Velocity {}", proxy.getVersion().getVersion());
+        logger.info("ServerDoctor enabled on Velocity {}", proxy.getVersion().getVersion());
 
         checkForUpdate(platform);
         setupMetrics();
@@ -237,7 +237,7 @@ public final class ServerDoctorVelocityPlugin {
                 store.applyOverrides(Files.readString(file, StandardCharsets.UTF_8));
             }
         } catch (Exception ex) {
-            logger.warn("messages.yml nicht ladbar: {}", ex.getMessage());
+            logger.warn("messages.yml not readable: {}", ex.getMessage());
         }
         return store;
     }
@@ -248,7 +248,7 @@ public final class ServerDoctorVelocityPlugin {
         Path file = dataDirectory.resolve("messages.yml");
         if (Files.exists(file)) {
             try { messages.applyOverrides(Files.readString(file, StandardCharsets.UTF_8)); }
-            catch (Exception ex) { logger.warn("messages.yml nicht lesbar: {}", ex.getMessage()); }
+            catch (Exception ex) { logger.warn("messages.yml not readable: {}", ex.getMessage()); }
         }
     }
 
@@ -259,16 +259,16 @@ public final class ServerDoctorVelocityPlugin {
             switch (result.status()) {
                 case UPDATE_AVAILABLE -> {
                     logger.warn("============================================================");
-                    logger.warn(" Ein Update ist verfügbar: {} -> {}",
+                    logger.warn(" An update is available: {} -> {}",
                             result.currentVersion(), result.latestVersion());
                     logger.warn(" Download: {}", result.releaseUrl());
                     logger.warn("============================================================");
-                    logger.warn("ServerDoctor wird inert geschaltet, bis das Update eingespielt ist.");
+                    logger.warn("ServerDoctor will be disabled until the update is installed.");
                     deactivate();
                 }
-                case UP_TO_DATE  -> logger.info("ServerDoctor ist aktuell ({}).", result.currentVersion());
-                case NO_RELEASES -> logger.info("Update-Prüfung: keine Releases gefunden.");
-                case ERROR       -> logger.warn("Update-Prüfung fehlgeschlagen: {}", result.detail());
+                case UP_TO_DATE  -> logger.info("ServerDoctor is up to date ({}).", result.currentVersion());
+                case NO_RELEASES -> logger.warn("Update-Prüfung: No releases found.");
+                case ERROR       -> logger.error("Update-Prüfung error: {}", result.detail());
             }
         });
     }
@@ -296,7 +296,7 @@ public final class ServerDoctorVelocityPlugin {
         try (InputStream bundled = getClass().getResourceAsStream("/config.yml")) {
             cfg = VelocityStorageSettings.load(dataDirectory, bundled);
         } catch (Exception ex) {
-            logger.warn("Storage-Config ungültig ({}) - nutze SQLite.", ex.getMessage());
+            logger.warn("Invalid storage configuration ({}) - use SQLite.", ex.getMessage());
             cfg = StorageConfig.sqlite(dataDirectory.resolve("serverdoctor.db").toString());
         }
         try {
@@ -305,7 +305,7 @@ public final class ServerDoctorVelocityPlugin {
             logger.info("Storage: {}", cfg.type());
             return provider;
         } catch (Exception ex) {
-            logger.warn("{} nicht verfügbar ({}) - nutze In-Memory-Storage.", cfg.type(), ex.getMessage());
+            logger.warn("{} Not available ({}) - use in-memory storage.", cfg.type(), ex.getMessage());
             StorageProvider provider = StorageProviders.create(StorageConfig.memory());
             provider.initialize();
             return provider;
@@ -328,7 +328,7 @@ public final class ServerDoctorVelocityPlugin {
         try {
             metricsFactory.make(this, METRICS_PLUGIN_ID);
         } catch (Throwable t) {
-            logger.warn("Metrics konnte nicht initialisiert werden: {}", t.getMessage());
+            logger.warn("Metrics could not be initialized: {}", t.getMessage());
         }
     }
 }

@@ -256,7 +256,7 @@ public final class ServerDoctorBungeePlugin extends Plugin {
                     deactivate();
                 }
                 case UP_TO_DATE  -> getLogger().info("ServerDoctor is up to date (" + result.currentVersion() + ").");
-                case NO_RELEASES -> getLogger().info("Update check: no releases found.");
+                case NO_RELEASES -> getLogger().warning("Update check: no releases found.");
                 case ERROR       -> getLogger().warning("Update check failed: " + result.detail());
             }
         });
