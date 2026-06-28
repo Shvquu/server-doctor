@@ -73,8 +73,8 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         PerformanceHistory history = limit -> storage.performance().recent(limit);
         NodeRepository nodeRepository = storage.nodes();
         if (nodeRepository == null) {
-            getLogger().warning("storage.nodes() lieferte null (" + storage.getClass().getSimpleName()
-                    + ") - Cross-Node bleibt inaktiv. Prüft, ob euer StorageProvider 'nodes' in initialize() zuweist.");
+            getLogger().warning("storage.nodes() returned null (" + storage.getClass().getSimpleName()
+                    + ") - Cross-Node remains inactive. Check whether your StorageProvider assigns ‘nodes’ in initialize().");
         }
         String nodeName = resolveNodeName(platform);
         WebhookConfig webhookConfig = PaperServiceSettings.webhooks(getConfig());
@@ -98,7 +98,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
                     nodeRepository.upsert(NodeFingerprints.of(platform, nodeName));
                 }
             } catch (Exception ex) {
-                getLogger().warning("Persistenz fehlgeschlagen: " + ex.getMessage());
+                getLogger().warning("Persistence failed: " + ex.getMessage());
             }
         });
 
@@ -136,10 +136,12 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             try {
                 new ServerDoctorExpansion(this, api).register();
-                getLogger().info("PlaceholderAPI-Integration aktiviert.");
+                getLogger().info("PlacerholderAPI integration was successfully started");
             } catch (Throwable t) {
-                getLogger().warning("PlaceholderAPI-Hook fehlgeschlagen: " + t.getMessage());
+                getLogger().warning("PlaceholderAPI-Hook error: " + t.getMessage());
             }
+        } else {
+            getLogger().warning("PlaceholderAPI was not found, or is currently disabled");
         }
 
         // REST API (no-op if disabled in config.yml)
@@ -174,12 +176,12 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
                 var report = api.runDiagnostics();
                 if (tasks.warnOnHigh() && report.overallSeverity().atLeast(Severity.HIGH)) {
                     getLogger().warning("ServerDoctor: Status " + report.overallSeverity()
-                            + " - /serverdoctor report für Details.");
+                            + " - /serverdoctor report for details.");
                 }
             }, tasks.initDelayTicks(), tasks.intervalTicks());
         }
 
-        getLogger().info("ServerDoctor aktiviert auf " + platform.serverInfo().version());
+        getLogger().info("ServerDoctor is enabled on " + platform.serverInfo().version());
 
         checkForUpdates(platform);
         setupMetrics();
@@ -193,7 +195,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             try { storage.close(); } catch (Exception ignored) { }
         }
         ServerDoctorProvider.unregister();
-        getLogger().info("ServerDoctor deaktiviert.");
+        getLogger().info("ServerDoctor deactivated.");
     }
 
     private AdvisorySource buildAdvisorySource() {
@@ -230,7 +232,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         File file = new File(getDataFolder(), "messages.yml");
         if (file.exists()) {
             try { store.applyOverrides(Files.readString(file.toPath(), StandardCharsets.UTF_8)); }
-            catch (Exception ex) { getLogger().warning("messages.yml nicht lesbar: " + ex.getMessage()); }
+            catch (Exception ex) { getLogger().warning("messages.yml not readable: " + ex.getMessage()); }
         }
         return store;
     }
@@ -241,7 +243,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         File file = new File(getDataFolder(), "messages.yml");
         if (file.exists()) {
             try { messageStore.applyOverrides(Files.readString(file.toPath(), StandardCharsets.UTF_8)); }
-            catch (Exception ex) { getLogger().warning("messages.yml nicht lesbar: " + ex.getMessage()); }
+            catch (Exception ex) { getLogger().warning("messages.yml not readable: " + ex.getMessage()); }
         }
     }
 
@@ -254,18 +256,18 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             switch (result.status()) {
                 case UPDATE_AVAILABLE -> {
                     getLogger().warning("============================================================");
-                    getLogger().warning(" Ein Update ist verfügbar: "
+                    getLogger().warning(" An update is available: "
                             + result.currentVersion() + " -> " + result.latestVersion());
                     getLogger().warning(" Download: " + result.releaseUrl());
                     getLogger().warning("============================================================");
                     platform.scheduler().runGlobal(() -> {
-                        getLogger().warning("ServerDoctor wird deaktiviert, bis das Update eingespielt ist.");
+                        getLogger().warning("ServerDoctor will be disabled until the update is installed.");
                         getServer().getPluginManager().disablePlugin(this);
                     });
                 }
-                case UP_TO_DATE   -> getLogger().info("ServerDoctor ist aktuell (" + result.currentVersion() + ").");
-                case NO_RELEASES  -> getLogger().info("Update-Prüfung: keine Releases gefunden.");
-                case ERROR        -> getLogger().warning("Update-Prüfung fehlgeschlagen: " + result.detail());
+                case UP_TO_DATE   -> getLogger().info("ServerDoctor is currently (" + result.currentVersion() + ").");
+                case NO_RELEASES  -> getLogger().warning("Update check: No releases found.");
+                case ERROR        -> getLogger().warning("Update check failed: " + result.detail());
             }
         });
     }
@@ -274,11 +276,11 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         StorageConfig cfg;
         try {
             if (!getDataFolder().exists() && !getDataFolder().mkdirs()) {
-                throw new IllegalStateException("Datenordner konnte nicht erstellt werden.");
+                throw new IllegalStateException("The data folder could not be created.");
             }
             cfg = StorageSettings.from(getConfig(), getDataFolder());
         } catch (Exception ex) {
-            getLogger().warning("Storage-Config ungültig (" + ex.getMessage() + ") - nutze SQLite.");
+            getLogger().warning("Invalid storage configuration (" + ex.getMessage() + ") - use SQLite.");
             cfg = StorageConfig.sqlite(new File(getDataFolder(), "serverdoctor.db").getAbsolutePath());
         }
         try {
@@ -287,7 +289,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
             getLogger().info("Storage: " + cfg.type());
             return provider;
         } catch (Exception ex) {
-            getLogger().warning(cfg.type() + " nicht verfügbar (" + ex.getMessage() + ") - nutze In-Memory-Storage.");
+            getLogger().warning(cfg.type() + " not available (" + ex.getMessage() + ") - use In-Memory-Storage.");
             StorageProvider provider = StorageProviders.create(StorageConfig.memory());
             provider.initialize();
             return provider;
