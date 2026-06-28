@@ -3,6 +3,8 @@ package com.serverdoctor.bungee;
 import com.serverdoctor.api.ServerDoctorApi;
 import com.serverdoctor.api.ServerDoctorProvider;
 import com.serverdoctor.api.event.AnalysisFinishedEvent;
+import com.serverdoctor.api.event.OverallSeverityChangedEvent;
+import com.serverdoctor.api.event.ScannerFailedEvent;
 import com.serverdoctor.bungee.platform.BungeeServerPlatform;
 import com.serverdoctor.bungee.service.BungeeServiceSettings;
 import com.serverdoctor.bungee.storage.BungeeStorageSettings;
@@ -88,6 +90,19 @@ public final class ServerDoctorBungeePlugin extends Plugin {
             } catch (Exception ex) {
                 getLogger().warning("Persistence failed: " + ex.getMessage());
             }
+        });
+
+        api.events().subscribe(OverallSeverityChangedEvent.class, e -> {
+            if (e.worsened()) {
+                getLogger().warning("Status worsened: " + e.previous() + " -> " + e.current()
+                        + " (use /serverdoctor report)");
+            } else if (e.improved()) {
+                getLogger().info("Status improved: " + e.previous() + " -> " + e.current());
+            }
+        });
+
+        api.events().subscribe(ScannerFailedEvent.class, e -> {
+            getLogger().warning("Scanner failed: " + e.error());
         });
 
         this.command = new ServerDoctorBungeeCommand(api, messages, this::reloadMessages, getDataFolder().toPath(), NodeFingerprints.minecraftVersion(platform.serverInfo().version()));

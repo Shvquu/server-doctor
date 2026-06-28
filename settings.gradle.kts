@@ -12,6 +12,7 @@ include(
     "serverdoctor-velocity",
     "serverdoctor-webhook",
     "serverdoctor-bungeecord",
+    "serverdoctor-example-plugin"
 )
 
 dependencyResolutionManagement {

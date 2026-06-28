@@ -22,19 +22,20 @@ into a platform SDK and the platform adapters stay read-only.
 
 ## Modules
 
-| Module                    | Contents                                                                                | Status    |
-|---------------------------|-----------------------------------------------------------------------------------------|-----------|
-| `serverdoctor-common`     | Domain models, utilities, exception base                                                | verified  |
-| `serverdoctor-api`        | Public contract, events, module SPI                                                     | verified  |
-| `serverdoctor-core`       | Engine, 8 scanners, recommendations, conflict DB, update checker, optional sources      | verified  |
-| `serverdoctor-storage`    | StorageProvider, 5 repositories — In-Memory, SQLite, PostgreSQL, MariaDB, MongoDB       | verified  |
-| `serverdoctor-rest-api`   | Read-only HTTP/JSON endpoints (JDK only)                                                | buildable |
-| `serverdoctor-webhook`    | Discord / Slack / Teams notifications (JDK only)                                        | buildable |
-| `serverdoctor-testing`    | Fake-platform fixtures, JUnit 5 suite, ArchUnit rules                                   | verified  |
-| `serverdoctor-paper`      | Bukkit/Paper/Folia adapter, in-game GUI, command, PlaceholderAPI bridge, storage wiring | buildable |
-| `serverdoctor-velocity`   | Velocity adapter, command, storage wiring                                               | buildable |
-| `serverdoctor-bungeecord` | BungeeCord adapter, command, storage wiring                                             | buildable |
-| `serverdoctor-universal`  | Bundles Paper + Velocity + BungeeCord into one shaded jar                               | buildable |
+| Module                       | Contents                                                                                                      | Status    |
+|------------------------------|---------------------------------------------------------------------------------------------------------------|-----------|
+| `serverdoctor-common`        | Domain models, utilities, exception base                                                                      | verified  |
+| `serverdoctor-api`           | Public contract, events, module SPI                                                                           | verified  |
+| `serverdoctor-core`          | Engine, 11 scanners, recommendations, conflict DB, update checker, report export, baselines, optional sources | verified  |
+| `serverdoctor-storage`       | StorageProvider, 6 repositories — In-Memory, SQLite, PostgreSQL, MariaDB, MongoDB                             | verified  |
+| `serverdoctor-rest-api`      | Read-only HTTP/JSON endpoints + Prometheus `/metrics` (JDK only)                                              | stable    |
+| `serverdoctor-webhook`       | Discord / Slack / Teams notifications + health digest (JDK only)                                             | stable    |
+| `serverdoctor-testing`       | Fake-platform fixtures, JUnit 5 suite, ArchUnit rules                                                         | verified  |
+| `serverdoctor-paper`         | Bukkit/Paper/Folia adapter, in-game GUI, command, PlaceholderAPI bridge, storage wiring                      | stable    |
+| `serverdoctor-velocity`      | Velocity adapter, command, storage wiring                                                                     | stable    |
+| `serverdoctor-bungeecord`    | BungeeCord adapter, command, storage wiring                                                                   | stable    |
+| `serverdoctor-universal`     | Bundles Paper + Velocity + BungeeCord into one shaded jar                                                     | stable    |
+| `serverdoctor-example-plugin`| Standalone reference integration that consumes the API (not part of the shaded jar)                          | reference |
 
 ## Scanners
 
@@ -154,51 +155,87 @@ Each node upserts its own fingerprint after every scan; the scanner reads the ot
 ### Optional features
 
 ```yaml
-# In-game GUI (Paper/Folia)
+# ServerDoctor configuration
+# Read-only Analyse-Plattform - diese Datei verändert nichts am Server.
+
+# ---- In-game GUI (Paper/Folia) ---------------------------------------------
 gui:
   enabled: true
-  title: "ServerDoctor"
+  title: "ServerDoctor"        # window title prefix
 
-# Automated periodic scan (Paper/Folia)
+# ---- Automated tasks (Paper/Folia) -----------------------------------------
 tasks:
+  # Periodic full analysis. Fires the same events as /serverdoctor scan, so it
+  # also feeds storage history and (if enabled) webhooks.
   scan:
     enabled: true
-    interval-seconds: 120
-    initial-delay-seconds: 30
-    warn-on-high: true
+    interval-seconds: 120        # e.g. every 120 seconds (minimum 10)
+    initial-delay-seconds: 30    # wait this long after startup before the first run
+    warn-on-high: true           # log a warning when overall status >= HIGH
 
-# Read-only HTTP/JSON API (binds to 127.0.0.1 by default)
-rest-api:
-  enabled: false
-  host: "127.0.0.1"
-  port: 9173
-  token: ""              # if set, all endpoints except /health require Bearer auth
-
-# Outbound notifications (fire on status change, not every scan)
-webhooks:
-  enabled: false
-  min-severity: HIGH
-  targets:
-    - type: discord      # discord | slack | teams
-      url: ""
-      name: "ops"
-  # Periodic summary pushed to the same targets, regardless of status change.
-  digest:
-    enabled: false
-    interval-minutes: 1440
-
-# Optional external feeds (off by default — see "Honest by design")
+# ---- Security advisory feed (off by default) -------------------------------
+# There is no canonical CVE database for Minecraft plugins, so this checks
+# installed plugins against a REAL, external feed that you (or the community)
+# maintain. Disabled and empty by default -> behaves exactly as before.
 security:
   advisory:
     enabled: false
+    # HTTPS URL of a feed in the documented pipe format (see advisories.sample.txt).
+    # e.g. https://raw.githubusercontent.com/<org>/<repo>/main/advisories.txt
     feed-url: ""
     refresh-minutes: 360
 
 compatibility:
   metadata:
     enabled: false
+    # HTTPS URL of a feed in the documented pipe format (see compatibility.sample.txt).
     feed-url: ""
     refresh-minutes: 1440
+
+# --- Cross-node consistency (only useful with a SHARED database backend) ---
+# Each ServerDoctor instance writes its fingerprint (server/java/plugin versions) to the shared
+# DB; the cross-node scanner compares them. Give every node a unique, stable name.
+network:
+  # Unique per node. If blank, a name is derived from platform + a generated id on first start.
+  node-name: ""
+
+# Disk and Java-runtime checks need no configuration — they self-probe and run automatically.
+
+# ---- REST API (read-only HTTP/JSON) ----------------------------------------
+rest-api:
+  enabled: false
+  # Bind address. Keep 127.0.0.1 for localhost-only. If you expose it on
+  # 0.0.0.0, set a token below and/or put it behind a reverse proxy.
+  host: "127.0.0.1"
+  port: 9173
+  # Optional bearer token. If set, every endpoint except /health requires
+  # the header: Authorization: Bearer <token>
+  token: ""
+
+# ---- Webhooks (Discord / Slack / Teams) ------------------------------------
+webhooks:
+  enabled: false
+  # Notify only when the overall status reaches this severity or higher.
+  # One of: INFO | LOW | MEDIUM | HIGH | CRITICAL
+  min-severity: HIGH
+  # Fires on status change (new/worse/recovered), not on every scan.
+  targets:
+    - type: discord
+      name: "ops"
+      url: ""
+    - type: slack
+      name: ""
+      url: ""
+    - type: teams
+      name: ""
+      url: ""
+  # --- Health digest: periodic webhook summary (complements the event-based alerts) ---
+  digest:
+    enabled: false
+    interval-minutes: 1440      # 1440 = once per day
+  # Report export and baseline use commands only (no config). Exports are written to
+  # <data-folder>/exports/. The pinned baseline is stored at <data-folder>/baseline.properties.
+  # The Prometheus endpoint needs no config beyond enabling the REST API (it is served at /metrics).
 ```
 
 ## In-game GUI (Paper/Folia)
@@ -251,6 +288,7 @@ which returns Prometheus text):
 | `/security`        | security/advisory risks      | token (if set) |
 | `/recommendations` | recommendations              | token (if set) |
 | `/report`          | full latest report           | token (if set) |
+| `/metrics`         | Prometheus-format metrics    | token (if set) |
 
 ## Webhooks
 
@@ -282,13 +320,21 @@ Clean Architecture dependency rule, and the read-only invariant of the platform 
 
 ```java
 import com.serverdoctor.api.ServerDoctorProvider;
-import com.serverdoctor.api.event.PluginConflictDetectedEvent;
+import com.serverdoctor.api.event.OverallSeverityChangedEvent;
 
 var api = ServerDoctorProvider.get();
 double tps = api.getPerformanceSnapshot().tps1m();
-api.events().subscribe(PluginConflictDetectedEvent.class,
-        e -> getLogger().warning("Conflict: " + e.conflict().description()));
+api.events().subscribe(OverallSeverityChangedEvent.class,
+        e -> { if (e.worsened()) getLogger().warning("Status: " + e.previous() + " -> " + e.current()); });
 ```
+
+Read-only endpoints include `getServerInfo()`, `getPlugins()`, `getCapabilities()`,
+`getOverallSeverity()`, `getLastRunTimestamp()`, `getRegisteredModuleIds()`, plus the
+performance / conflicts / security / recommendations / report accessors.
+
+Events you can subscribe to: `AnalysisStartedEvent`, `AnalysisFinishedEvent`,
+`OverallSeverityChangedEvent`, `PerformanceThresholdReachedEvent`, `PluginConflictDetectedEvent`,
+`SecurityRiskDetectedEvent`, `RecommendationGeneratedEvent` and `ScannerFailedEvent`.
 
 Register your own scanner:
 
@@ -304,14 +350,16 @@ api.registerModule(new AnalysisModule() {
 });
 ```
 
+A complete, runnable example lives in **`serverdoctor-example-plugin`** — a standalone Paper plugin
+that reads diagnostics, subscribes to events and registers a custom scanner.
+
 API failures share a common base, so you can catch them in one place: `ServerDoctorException`
 (with `ApiNotInitializedException`, `ConfigurationException`, `StorageException`,
 `AnalysisException`).
 
 ## Roadmap
 
-- `serverdoctor-example-plugin` (reference integration).
-- Trend detection for finding/conflict counts at the persistence layer (the regression scanner
+- Findings-/conflict-count trend detection at the persistence layer (the regression scanner
   currently covers TPS/MSPT/RAM).
 
 ---
