@@ -32,4 +32,4 @@ bstats-velocity   = { module = "org.bstats:bstats-velocity",   version.ref = "bs
 bstats-bungeecord = { module = "org.bstats:bstats-bungeecord", version.ref = "bstats" }
 
 [plugins]
-shadow = { id = "com.gradleup.shadow", version = "9.4.2" }
+shadow = { id = "com.gradleup.shadow", version = "9.4.3" }
