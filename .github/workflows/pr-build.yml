@@ -1,0 +1,52 @@
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+
+      - name: Make Gradle Executable
+        run: chmod +x gradlew
+
+      - name: Build & Test
+        run: ./gradlew build
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: serverdoctor-universal-jar
+          path: serverdoctor-universal/build/libs/*.jar
+          retention-days: 7
+
+      - name: Upload Test Reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: "**/build/reports/tests/"
+          retention-days: 7
