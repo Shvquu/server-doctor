@@ -49,7 +49,7 @@ import java.util.Map;
 @Plugin(
         id = "serverdoctor",
         name = "ServerDoctor",
-        version = "1.0.0",
+        version = "1.1.0",
         description = "Read-only analysis, diagnostics and monitoring for Minecraft networks.",
         authors = {"LittleSophyy", "zNixFNA", "DeltaNimrod"}
 )
@@ -288,7 +288,7 @@ public final class ServerDoctorVelocityPlugin {
     private String currentVersion() {
         return proxy.getPluginManager().fromInstance(this)
                 .flatMap(container -> container.getDescription().getVersion())
-                .orElse("1.0.0");
+                .orElse("1.1.0");
     }
 
     private StorageProvider openStorage() {

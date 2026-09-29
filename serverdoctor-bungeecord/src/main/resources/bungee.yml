@@ -1,5 +1,5 @@
 name: ServerDoctor
 main: com.serverdoctor.bungee.ServerDoctorBungeePlugin
-version: 1.0.0
+version: 1.1.0
 author: LittleSophyy, zNixFNA, DeltaNimrod
 description: Read-only analysis, diagnostics and monitoring for Minecraft networks.
