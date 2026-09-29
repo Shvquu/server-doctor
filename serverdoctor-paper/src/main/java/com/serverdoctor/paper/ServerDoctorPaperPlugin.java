@@ -17,6 +17,7 @@ import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.network.NodeFingerprints;
 import com.serverdoctor.core.regression.PerformanceHistory;
+import com.serverdoctor.core.regression.ScanHistory;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.paper.command.ServerDoctorCommand;
@@ -71,6 +72,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
         this.storage = openStorage();
 
         PerformanceHistory history = limit -> storage.performance().recent(limit);
+        ScanHistory scanHistory = limit -> storage.summaries().recent(limit);
         NodeRepository nodeRepository = storage.nodes();
         if (nodeRepository == null) {
             getLogger().warning("storage.nodes() returned null (" + storage.getClass().getSimpleName()
@@ -83,6 +85,7 @@ public final class ServerDoctorPaperPlugin extends JavaPlugin {
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
+                .scanHistory(scanHistory)
                 .config(new FilesystemConfigSource())
                 .network(() -> nodeRepository == null ? java.util.List.of() : nodeRepository.others(nodeName))
                 .build();

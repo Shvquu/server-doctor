@@ -5,6 +5,7 @@ import com.serverdoctor.common.model.ConflictReport;
 import com.serverdoctor.common.model.PerformanceSnapshot;
 import com.serverdoctor.common.model.PluginInfo;
 import com.serverdoctor.common.model.Recommendation;
+import com.serverdoctor.common.model.ScanSummary;
 import com.serverdoctor.common.model.SecurityRisk;
 import com.serverdoctor.storage.StorageProvider;
 import com.serverdoctor.storage.node.InMemoryNodeRepository;
@@ -30,6 +31,7 @@ public final class MemoryStorageProvider implements StorageProvider {
     private final Deque<ConflictReport> conflictList = new ConcurrentLinkedDeque<>();
     private final Deque<SecurityRisk> riskList = new ConcurrentLinkedDeque<>();
     private final Deque<Recommendation> recList = new ConcurrentLinkedDeque<>();
+    private final Deque<ScanSummary> summaryList = new ConcurrentLinkedDeque<>();
     private volatile List<PluginInfo> inventory = List.of();
     private final NodeRepository nodes = new InMemoryNodeRepository();
 
@@ -87,6 +89,14 @@ public final class MemoryStorageProvider implements StorageProvider {
         return new PluginRepository() {
             @Override public void saveInventory(Instant at, List<PluginInfo> plugins) { inventory = List.copyOf(plugins); }
             @Override public List<PluginInfo> latestInventory() { return inventory; }
+        };
+    }
+
+    @Override
+    public ScanSummaryRepository summaries() {
+        return new ScanSummaryRepository() {
+            @Override public void save(ScanSummary s) { push(summaryList, s); }
+            @Override public List<ScanSummary> recent(int limit) { return head(summaryList, limit); }
         };
     }
 

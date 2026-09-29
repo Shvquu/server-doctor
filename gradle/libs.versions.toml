@@ -21,6 +21,7 @@ placeholderapi  = { module = "me.clip:placeholderapi", version.ref = "placeholde
 sqlite-jdbc     = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
 junit-bom       = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter   = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 hikaricp       = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
 postgresql     = { module = "org.postgresql:postgresql", version.ref = "postgresql" }

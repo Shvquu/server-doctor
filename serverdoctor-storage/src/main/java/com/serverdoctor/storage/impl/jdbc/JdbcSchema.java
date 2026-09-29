@@ -57,7 +57,15 @@ final class JdbcSchema {
                 authors TEXT, enabled INTEGER
             )
             """.formatted(id),
-            "CREATE INDEX IF NOT EXISTS idx_inventory_time ON plugin_inventory(at)"
+            "CREATE INDEX IF NOT EXISTS idx_inventory_time ON plugin_inventory(at)",
+            """
+            CREATE TABLE IF NOT EXISTS scan_summaries (
+                id %s,
+                at VARCHAR(64) NOT NULL, findings INTEGER, severe_findings INTEGER,
+                conflicts INTEGER, security_risks INTEGER
+            )
+            """.formatted(id),
+            "CREATE INDEX IF NOT EXISTS idx_summaries_time ON scan_summaries(at)"
         };
     }
 }

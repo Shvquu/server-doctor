@@ -71,7 +71,7 @@ public final class ServerDoctorCore {
         registry.register(new PerformanceScanner());
         registry.register(new SecurityScanner(s.advisory()));
         registry.register(new CompatibilityScanner(s.compatibility()));
-        registry.register(new RegressionScanner(s.history()));
+        registry.register(new RegressionScanner(s.history(), s.scanHistory()));
         registry.register(new ConfigurationScanner(s.config()));
         registry.register(new DiskScanner());
         registry.register(new RuntimeScanner());

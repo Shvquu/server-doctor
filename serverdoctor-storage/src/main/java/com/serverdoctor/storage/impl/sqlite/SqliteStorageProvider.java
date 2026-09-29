@@ -24,6 +24,7 @@ public final class SqliteStorageProvider implements StorageProvider {
     private SecurityRepository security;
     private RecommendationRepository recommendations;
     private PluginRepository plugins;
+    private ScanSummaryRepository summaries;
     private final NodeRepository nodes = new InMemoryNodeRepository();
 
     public SqliteStorageProvider(String file) {
@@ -49,6 +50,7 @@ public final class SqliteStorageProvider implements StorageProvider {
             this.security = new SqliteSecurityRepository(ctx);
             this.recommendations = new SqliteRecommendationRepository(ctx);
             this.plugins = new SqlitePluginRepository(ctx);
+            this.summaries = new SqliteScanSummaryRepository(ctx);
         } catch (Exception e) {
             throw new StorageException("SQLite-Initialisierung fehlgeschlagen: " + file, e);
         }
@@ -63,6 +65,7 @@ public final class SqliteStorageProvider implements StorageProvider {
     @Override public SecurityRepository security() { requireInit(); return security; }
     @Override public RecommendationRepository recommendations() { requireInit(); return recommendations; }
     @Override public PluginRepository plugins() { requireInit(); return plugins; }
+    @Override public ScanSummaryRepository summaries() { requireInit(); return summaries; }
     @Override public NodeRepository nodes() { requireInit(); return nodes; }
 
     @Override

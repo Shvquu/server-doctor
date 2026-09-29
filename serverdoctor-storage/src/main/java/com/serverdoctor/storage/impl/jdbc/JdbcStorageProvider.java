@@ -37,6 +37,7 @@ public final class JdbcStorageProvider implements StorageProvider {
     private SecurityRepository security;
     private RecommendationRepository recommendations;
     private PluginRepository plugins;
+    private ScanSummaryRepository summaries;
 
     public JdbcStorageProvider(String jdbcUrl, String username, String password, JdbcDialect dialect) {
         this.jdbcUrl = jdbcUrl;
@@ -85,6 +86,7 @@ public final class JdbcStorageProvider implements StorageProvider {
             this.security = new JdbcSecurityRepository(ctx);
             this.recommendations = new JdbcRecommendationRepository(ctx);
             this.plugins = new JdbcPluginRepository(ctx);
+            this.summaries = new JdbcScanSummaryRepository(ctx);
         } catch (Exception e) {
             throw new StorageException(dialect + "-Initialisierung fehlgeschlagen: " + jdbcUrl, e);
         }
@@ -99,6 +101,7 @@ public final class JdbcStorageProvider implements StorageProvider {
     @Override public SecurityRepository security() { requireInit(); return security; }
     @Override public RecommendationRepository recommendations() { requireInit(); return recommendations; }
     @Override public PluginRepository plugins() { requireInit(); return plugins; }
+    @Override public ScanSummaryRepository summaries() { requireInit(); return summaries; }
     @Override public NodeRepository nodes() { requireInit(); return nodes; }
 
     @Override

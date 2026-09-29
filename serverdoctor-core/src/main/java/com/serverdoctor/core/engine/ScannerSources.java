@@ -9,12 +9,14 @@ import com.serverdoctor.core.config.NoopConfigSource;
 import com.serverdoctor.core.network.NetworkView;
 import com.serverdoctor.core.network.NoopNetworkView;
 import com.serverdoctor.core.regression.NoopPerformanceHistory;
+import com.serverdoctor.core.regression.NoopScanHistory;
 import com.serverdoctor.core.regression.PerformanceHistory;
+import com.serverdoctor.core.regression.ScanHistory;
 
 /**
  * Bundles the optional, externally-provided sources a platform adapter can inject into the core:
- * the security advisory feed, the compatibility metadata feed, the performance history (for
- * regression detection) and the config-file source. All default to no-op, so leaving any unset
+ * the security advisory feed, the compatibility metadata feed, the performance and scan-count
+ * histories (for regression detection) and the config-file source. All default to no-op, so leaving any unset
  * is safe.
  */
 public final class ScannerSources {
@@ -22,6 +24,7 @@ public final class ScannerSources {
     private final AdvisorySource advisory;
     private final CompatibilityMetadataSource compatibility;
     private final PerformanceHistory history;
+    private final ScanHistory scanHistory;
     private final ConfigSource config;
     private final NetworkView network;
 
@@ -29,6 +32,7 @@ public final class ScannerSources {
         this.advisory = b.advisory;
         this.compatibility = b.compatibility;
         this.history = b.history;
+        this.scanHistory = b.scanHistory;
         this.config = b.config;
         this.network = b.network;
     }
@@ -36,6 +40,7 @@ public final class ScannerSources {
     public AdvisorySource advisory() { return advisory; }
     public CompatibilityMetadataSource compatibility() { return compatibility; }
     public PerformanceHistory history() { return history; }
+    public ScanHistory scanHistory() { return scanHistory; }
     public ConfigSource config() { return config; }
     public NetworkView network() { return network; }
 
@@ -47,6 +52,7 @@ public final class ScannerSources {
         private AdvisorySource advisory = NoopAdvisorySource.INSTANCE;
         private CompatibilityMetadataSource compatibility = NoopCompatibilityMetadataSource.INSTANCE;
         private PerformanceHistory history = NoopPerformanceHistory.INSTANCE;
+        private ScanHistory scanHistory = NoopScanHistory.INSTANCE;
         private ConfigSource config = NoopConfigSource.INSTANCE;
         private NetworkView network = NoopNetworkView.INSTANCE;
 
@@ -58,6 +64,9 @@ public final class ScannerSources {
         }
         public Builder history(PerformanceHistory v) {
             this.history = v == null ? NoopPerformanceHistory.INSTANCE : v; return this;
+        }
+        public Builder scanHistory(ScanHistory v) {
+            this.scanHistory = v == null ? NoopScanHistory.INSTANCE : v; return this;
         }
         public Builder config(ConfigSource v) {
             this.config = v == null ? NoopConfigSource.INSTANCE : v; return this;

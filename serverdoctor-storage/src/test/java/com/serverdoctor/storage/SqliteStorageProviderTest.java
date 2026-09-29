@@ -3,6 +3,7 @@ package com.serverdoctor.storage;
 import com.serverdoctor.common.model.ConflictReport;
 import com.serverdoctor.common.model.MemoryStats;
 import com.serverdoctor.common.model.PerformanceSnapshot;
+import com.serverdoctor.common.model.ScanSummary;
 import com.serverdoctor.common.model.Severity;
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +44,17 @@ class SqliteStorageProviderTest {
             assertEquals(1, list.size());
             assertEquals("LuckPerms", list.get(0).pluginA());
             assertEquals(Severity.CRITICAL, list.get(0).severity());
+        }
+    }
+
+    @Test void roundTripsScanSummary() {
+        try (StorageProvider store = open()) {
+            Instant at = Instant.parse("2026-01-01T12:00:00Z");
+            store.summaries().save(new ScanSummary(at.minusSeconds(120), 1, 0, 0, 0));
+            store.summaries().save(new ScanSummary(at, 5, 2, 3, 1));
+            var list = store.summaries().recent(10);
+            assertEquals(2, list.size());
+            assertEquals(new ScanSummary(at, 5, 2, 3, 1), list.get(0));
         }
     }
 }

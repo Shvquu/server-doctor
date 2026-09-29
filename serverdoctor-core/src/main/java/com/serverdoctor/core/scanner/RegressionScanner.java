@@ -6,9 +6,12 @@ import com.serverdoctor.api.module.ServerContext;
 import com.serverdoctor.common.model.Capability;
 import com.serverdoctor.common.model.Finding;
 import com.serverdoctor.common.model.PerformanceSnapshot;
+import com.serverdoctor.common.model.ScanSummary;
 import com.serverdoctor.common.model.Severity;
 import com.serverdoctor.core.regression.NoopPerformanceHistory;
+import com.serverdoctor.core.regression.NoopScanHistory;
 import com.serverdoctor.core.regression.PerformanceHistory;
+import com.serverdoctor.core.regression.ScanHistory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,10 +28,16 @@ import java.util.function.ToDoubleFunction;
  * <p>Uses only data that is already persisted, via an injected {@link PerformanceHistory}
  * (backed by storage in each platform adapter). Runs on Paper/Folia, Velocity and BungeeCord;
  * on proxies TPS/MSPT are NaN and are skipped automatically, while RAM is still compared.
+ *
+ * <p>The same older-vs-newer comparison runs over the stored per-scan counters from an injected
+ * {@link ScanHistory} (findings, HIGH+ findings, conflicts, security risks) and is reported as a
+ * separate finding. Counts are small integers, so a metric only triggers when its average rises
+ * by an absolute minimum <em>and</em> a relative percentage, which keeps single noisy scans quiet.
  */
 public final class RegressionScanner implements AnalysisModule {
 
     private final PerformanceHistory history;
+    private final ScanHistory scanHistory;
 
     // thresholds (percent change required before reporting)
     private final int window = 500;
@@ -36,13 +45,20 @@ public final class RegressionScanner implements AnalysisModule {
     private final double tpsDropPct = 8.0;
     private final double msptRisePct = 25.0;
     private final double ramRisePct = 30.0;
+    private final double countRiseAbs = 1.0;
+    private final double countRisePct = 50.0;
 
     public RegressionScanner() {
         this(NoopPerformanceHistory.INSTANCE);
     }
 
     public RegressionScanner(PerformanceHistory history) {
+        this(history, NoopScanHistory.INSTANCE);
+    }
+
+    public RegressionScanner(PerformanceHistory history, ScanHistory scanHistory) {
         this.history = history == null ? NoopPerformanceHistory.INSTANCE : history;
+        this.scanHistory = scanHistory == null ? NoopScanHistory.INSTANCE : scanHistory;
     }
 
     @Override public String id() { return "regression"; }
@@ -52,9 +68,14 @@ public final class RegressionScanner implements AnalysisModule {
     @Override
     public AnalysisResult analyze(ServerContext context) {
         AnalysisResult.Builder out = AnalysisResult.builder(id());
+        performanceRegression(out);
+        countRegression(out);
+        return out.build();
+    }
 
+    private void performanceRegression(AnalysisResult.Builder out) {
         List<PerformanceSnapshot> hist = history.recent(window);
-        if (hist == null || hist.size() < minSamples) return out.build();
+        if (hist == null || hist.size() < minSamples) return;
 
         List<PerformanceSnapshot> sorted = new ArrayList<>(hist);
         sorted.sort(Comparator.comparing(PerformanceSnapshot::capturedAt).reversed()); // newest first
@@ -99,18 +120,63 @@ public final class RegressionScanner implements AnalysisModule {
             }
         }
 
-        if (parts.isEmpty()) return out.build();
+        if (parts.isEmpty()) return;
 
         out.finding(new Finding(id(), severity,
                 "Performance regression vs baseline (" + older.size() + " older / "
                         + newer.size() + " newer samples): " + String.join("; ", parts)));
-        return out.build();
     }
 
-    private static Double avg(List<PerformanceSnapshot> list, ToDoubleFunction<PerformanceSnapshot> f) {
+    private void countRegression(AnalysisResult.Builder out) {
+        List<ScanSummary> hist = scanHistory.recent(window);
+        if (hist == null || hist.size() < minSamples) return;
+
+        List<ScanSummary> sorted = new ArrayList<>(hist);
+        sorted.sort(Comparator.comparing(ScanSummary::at).reversed()); // newest first
+
+        int mid = sorted.size() / 2;
+        List<ScanSummary> newer = sorted.subList(0, mid);
+        List<ScanSummary> older = sorted.subList(mid, sorted.size());
+
+        List<String> parts = new ArrayList<>();
+        Severity severity = Severity.OK;
+
+        // "critical" metrics escalate to HIGH on any significant rise
+        severity = countTrend("Findings", false, older, newer, ScanSummary::findings, parts, severity);
+        severity = countTrend("HIGH+ findings", true, older, newer, ScanSummary::severeFindings, parts, severity);
+        severity = countTrend("Conflicts", false, older, newer, ScanSummary::conflicts, parts, severity);
+        severity = countTrend("Security risks", true, older, newer, ScanSummary::securityRisks, parts, severity);
+
+        if (parts.isEmpty()) return;
+
+        out.finding(new Finding(id(), severity,
+                "Issue count regression vs baseline (" + older.size() + " older / "
+                        + newer.size() + " newer scans): " + String.join("; ", parts)));
+    }
+
+    /** Appends a part and returns the raised severity if the metric's average rose significantly. */
+    private Severity countTrend(String label, boolean critical, List<ScanSummary> older,
+                                List<ScanSummary> newer, ToDoubleFunction<ScanSummary> f,
+                                List<String> parts, Severity severity) {
+        Double cOld = avg(older, f);
+        Double cNew = avg(newer, f);
+        if (cOld == null || cNew == null) return severity;
+
+        double rise = cNew - cOld;
+        if (rise < countRiseAbs) return severity;
+        double pct = cOld > 0 ? rise / cOld * 100.0 : Double.POSITIVE_INFINITY;
+        if (pct < countRisePct) return severity;
+
+        parts.add(label + " " + f1(cOld) + " -> " + f1(cNew)
+                + " (" + (cOld > 0 ? pct(pct) : "new") + ")");
+        boolean large = rise >= 3 && pct >= 100;
+        return Severity.max(severity, critical || large ? Severity.HIGH : Severity.MEDIUM);
+    }
+
+    private static <T> Double avg(List<T> list, ToDoubleFunction<T> f) {
         double sum = 0;
         int n = 0;
-        for (PerformanceSnapshot s : list) {
+        for (T s : list) {
             double v = f.applyAsDouble(s);
             if (!Double.isNaN(v)) { sum += v; n++; }
         }

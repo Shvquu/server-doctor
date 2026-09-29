@@ -16,6 +16,7 @@ import com.serverdoctor.core.engine.ServerDoctorCore;
 import com.serverdoctor.core.messages.MessageStore;
 import com.serverdoctor.core.network.NodeFingerprints;
 import com.serverdoctor.core.regression.PerformanceHistory;
+import com.serverdoctor.core.regression.ScanHistory;
 import com.serverdoctor.core.update.UpdateChecker;
 import com.serverdoctor.core.update.UpdateResult;
 import com.serverdoctor.platform.SchedulerAdapter;
@@ -95,12 +96,14 @@ public final class ServerDoctorVelocityPlugin {
         }
         String nodeName = resolveNodeName(cfg);
         PerformanceHistory history = limit -> storage.performance().recent(limit);
+        ScanHistory scanHistory = limit -> storage.summaries().recent(limit);
         WebhookConfig webhookConfig = VelocityServiceSettings.webhooks(cfg);
 
         ScannerSources sources = ScannerSources.builder()
                 .advisory(advisories)
                 .compatibility(compat)
                 .history(history)
+                .scanHistory(scanHistory)
                 .config(new FilesystemConfigSource())
                 .network(() -> nodeRepo == null ? java.util.List.of() : nodeRepo.others(nodeName))
                 .build();

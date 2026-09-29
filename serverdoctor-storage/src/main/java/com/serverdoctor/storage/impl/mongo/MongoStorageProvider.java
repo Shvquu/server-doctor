@@ -26,6 +26,7 @@ public final class MongoStorageProvider implements StorageProvider {
     private SecurityRepository security;
     private RecommendationRepository recommendations;
     private PluginRepository plugins;
+    private ScanSummaryRepository summaries;
     private final NodeRepository nodes = new InMemoryNodeRepository();
 
     public MongoStorageProvider(String connectionString) {
@@ -52,6 +53,7 @@ public final class MongoStorageProvider implements StorageProvider {
             this.security = new MongoSecurityRepository(ctx);
             this.recommendations = new MongoRecommendationRepository(ctx);
             this.plugins = new MongoPluginRepository(ctx);
+            this.summaries = new MongoScanSummaryRepository(ctx);
         } catch (Exception e) {
             throw new StorageException("MongoDB-Initialisierung fehlgeschlagen", e);
         }
@@ -66,6 +68,7 @@ public final class MongoStorageProvider implements StorageProvider {
     @Override public SecurityRepository security() { requireInit(); return security; }
     @Override public RecommendationRepository recommendations() { requireInit(); return recommendations; }
     @Override public PluginRepository plugins() { requireInit(); return plugins; }
+    @Override public ScanSummaryRepository summaries() { requireInit(); return summaries; }
     @Override public NodeRepository nodes() { requireInit(); return nodes; }
 
     @Override

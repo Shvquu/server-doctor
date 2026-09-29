@@ -45,6 +45,14 @@ final class SqliteSchema {
             at TEXT NOT NULL, name TEXT, version TEXT, authors TEXT, enabled INTEGER
         )
         """,
-        "CREATE INDEX IF NOT EXISTS idx_inventory_time ON plugin_inventory(at)"
+        "CREATE INDEX IF NOT EXISTS idx_inventory_time ON plugin_inventory(at)",
+        """
+        CREATE TABLE IF NOT EXISTS scan_summaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            at TEXT NOT NULL, findings INTEGER, severe_findings INTEGER,
+            conflicts INTEGER, security_risks INTEGER
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_summaries_time ON scan_summaries(at)"
     };
 }

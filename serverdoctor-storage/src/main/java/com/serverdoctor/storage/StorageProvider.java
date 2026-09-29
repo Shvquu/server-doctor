@@ -17,6 +17,12 @@ public interface StorageProvider extends AutoCloseable {
     PluginRepository plugins();
     NodeRepository nodes();
 
+    /**
+     * Eine Zählerzeile pro Analyse-Lauf (Grundlage der Count-Trend-Erkennung).
+     * Default verwirft alles, damit bestehende Fremd-Provider weiter kompilieren.
+     */
+    default ScanSummaryRepository summaries() { return ScanSummaryRepository.NOOP; }
+
     /** Bequemer Einstieg: einen kompletten Report mit einem Aufruf persistieren. */
     default void saveReport(DiagnosticReport report) {
         Instant at = report.timestamp();
@@ -24,6 +30,7 @@ public interface StorageProvider extends AutoCloseable {
         report.conflicts().forEach(c -> conflicts().save(at, c));
         report.securityRisks().forEach(r -> security().save(at, r));
         report.recommendations().forEach(r -> recommendations().save(at, r));
+        summaries().save(ScanSummaries.of(report));
     }
 
     @Override
